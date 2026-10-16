@@ -102,3 +102,21 @@ Newest entries at the bottom. Each checkpoint corresponds to a commit on
   `requirements-kaggle.txt` hold the stage-1 and Kaggle extras (versions checked on PyPI).
 
 **Still needs the GPU runs (Kaggle):** real features → agent → one-time test evaluation.
+
+## Checkpoint 3: encoder verification without weights
+
+**Built and verified**
+- `tests/test_encoders.py` builds each encoder's architecture with random weights (timm
+  `vit_giant`/`vit_huge` with the model-card kwargs, a DINOv2 config for Phikon-v2) and
+  checks the output dimensions (1536 / 2560 / 1024). For Virchow2 it checks that the
+  embedding is exactly CLS ⊕ mean(patch tokens) with the 5 prefix tokens (CLS + 4
+  registers) excluded.
+- **Issue found and fixed:** without the hub config, timm's default normalisation for this
+  ViT family is mean/std 0.5, not the ImageNet statistics the UNI2-h model card specifies.
+  UNI2-h preprocessing is now pinned to the card's transform, and a warning is logged if
+  the hub config disagrees. Virchow2 keeps `resolve_data_config` as its card prescribes.
+  Phikon-v2's public processor config was read and confirmed: ImageNet mean/std, 224 crop,
+  bicubic.
+- The local LLM backend frees cached GPU memory before loading, because Qwen loads mid-run
+  after MIL training has allocated memory.
+- `pytest`: **55 passed**; ruff clean.

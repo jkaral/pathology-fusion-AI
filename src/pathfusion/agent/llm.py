@@ -43,6 +43,8 @@ class LocalHFChat(ChatLLM):
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
         t0 = time.perf_counter()
+        if torch.cuda.is_available():  # MIL training ran first; give the LLM the cached memory back
+            torch.cuda.empty_cache()
         self._tok = AutoTokenizer.from_pretrained(self.cfg.local_model)
         dtype = torch.float16 if torch.cuda.is_available() else torch.float32
         self._model = AutoModelForCausalLM.from_pretrained(self.cfg.local_model, dtype=dtype, device_map="auto")
