@@ -70,7 +70,8 @@ def write_markdown(res: dict, agent: dict, classes: list[str], path: Path) -> No
     for r in res["rows"]:
         lines.append(f"| {r['label']} | " + " | ".join(f"{v:.3f}" for v in r["per_class_auroc"]) + " |")
     lines += ["", "## Agent selection (development CV, before test)", "",
-              f"- Selected: {agent['selected_short']} (CV {agent['selected_cv_mean']:.3f} ± {agent['selected_cv_se']:.3f})",
+              f"- Selected: {agent['selected_short']} "
+              f"(CV {agent['selected_cv_mean']:.3f} ± {agent['selected_cv_se']:.3f})",
               f"- Best single + meta: {agent['best_reference_short']} (CV {agent['best_reference_cv_mean']:.3f})",
               f"- CV gain {agent['cv_gain_vs_best_single']:+.3f} ± {agent['cv_gain_se']:.3f} "
               f"(significant at 1 SE: {agent['cv_gain_significant']})",
@@ -130,7 +131,8 @@ def main() -> None:
     preds = []
     for row in rows:
         for pid, p in zip(ids["test"], row.ensemble):
-            preds.append({"row": row.name, "patient_id": pid, **{c: round(float(v), 5) for c, v in zip(cfg.data.classes, p)}})
+            probs = {c: round(float(v), 5) for c, v in zip(cfg.data.classes, p)}
+            preds.append({"row": row.name, "patient_id": pid, **probs})
     pd.DataFrame(preds).to_csv(res_dir / "test_predictions.csv", index=False)
     errs = pd.DataFrame(error_analysis(ctx, next(r for r in rows if r.name == "fused"), ids["test"]))
     errs.to_csv(res_dir / "error_analysis.csv", index=False)

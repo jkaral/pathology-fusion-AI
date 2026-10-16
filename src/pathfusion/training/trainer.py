@@ -114,8 +114,10 @@ def train_mil(
     rng = np.random.default_rng(seed)
     model.to(ctx.device)
     y_train = ctx.labels(train_ids)
-    y_t = torch.from_numpy(y_train).to(ctx.device)
-    weight = class_weights(torch.from_numpy(y_train), ctx.n_classes).to(ctx.device) if cfg.class_weighting else None
+    y_t = torch.from_numpy(y_train.copy()).to(ctx.device)
+    weight = None
+    if cfg.class_weighting:
+        weight = class_weights(torch.from_numpy(y_train.copy()), ctx.n_classes).to(ctx.device)
     opt = torch.optim.AdamW(model.parameters(), lr=cfg.lr, weight_decay=cfg.weight_decay)
     steps_per_epoch = math.ceil(len(train_ids) / cfg.batch_size)
     sched = torch.optim.lr_scheduler.LambdaLR(
@@ -139,7 +141,7 @@ def train_mil(
             nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             opt.step()
             sched.step()
-            total += float(loss) * len(b)
+            total += loss.item() * len(b)
             count += len(b)
         rec: dict[str, float] = {"epoch": epoch + 1, "train/loss": total / count, "lr": sched.get_last_lr()[0]}
         if log_train_metrics:

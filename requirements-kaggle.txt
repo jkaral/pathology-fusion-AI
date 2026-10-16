@@ -1,0 +1,7 @@
+# Installed on top of Kaggle's preinstalled stack (torch, transformers, h5py, sklearn...).
+# Deliberately unpinned-upwards and without -U: upgrading huggingface_hub to 2.x breaks
+# Kaggle's transformers. pip leaves already-satisfied packages untouched.
+huggingface_hub>=1.5,<2.0
+timm>=1.0.9
+pyvips[binary]>=2.2.3
+h5py>=3.10

@@ -49,7 +49,8 @@ def main() -> None:
 - {t.native_magnification}x -> {t.target_magnification}x by JPEG DCT-domain shrink-on-load ({t.downsample}x linear).
 - Tissue mask at {t.target_magnification / t.thumbnail_downsample:.2f}x: HSV saturation, median filter, Otsu
   (floor {t.saturation_floor}), pen-hue removal, closing/opening, small-object removal.
-- Tiles {t.tile_size}px at 20x, stride {t.stride}, kept if tissue >= {t.min_tissue_fraction:.0%}; cap {t.max_tiles}/slide.
+- Tiles {t.tile_size}px at 20x, stride {t.stride}, kept if tissue >= {t.min_tissue_fraction:.0%};
+  cap {t.max_tiles}/slide.
 """))
     emb = args.embeddings_dir or cfg.paths.resolve("embeddings_dir")
     for name in ("extraction_summary.json", "encoders.json"):
@@ -68,8 +69,9 @@ def main() -> None:
         run = (agent_root / "LATEST").read_text().strip()
         sel = load_json(agent_root / run / "selected.json")
         trials = pd.read_csv(agent_root / run / "trials.csv")
+        has_tx = (agent_root / run / "llm_transcript.jsonl").exists()
         out.append(section("Agent", f"""
-- Run: artifacts/agent/{run} (decisions.md, decisions.jsonl, trials.csv{', llm_transcript.jsonl' if (agent_root / run / 'llm_transcript.jsonl').exists() else ''}).
+- Run: artifacts/agent/{run} (decisions.md, decisions.jsonl, trials.csv{', llm_transcript.jsonl' if has_tx else ''}).
 - Proposer: {sel.get('proposer')}; budget {sel['budget']}, used {sel['fusion_trials']}; stop: {sel['stop_reason']}.
 - Trials by source: {trials['source'].value_counts().to_dict()}; accepted: {int(trials['accepted'].sum())}.
 - Best single + meta (CV): {sel['best_reference_short']} = {sel['best_reference_cv_mean']:.3f}.
@@ -86,7 +88,8 @@ def main() -> None:
 - Errors: {len(wrong)}/{len(errs)}; of which predicted pattern is listed in the slide's Multi_Subtypes:
   {int(wrong['pred_in_multi_subtypes'].sum())}.
 - Most frequent confusions (true -> pred): {', '.join(f'{a}->{b} ({n})' for (a, b), n in pairs.items())}.
-- Error rate by diagnosis: {wrong.groupby('diagnosis').size().to_dict()} of {errs.groupby('diagnosis').size().to_dict()}.
+- Errors by diagnosis: {wrong.groupby('diagnosis').size().to_dict()}
+  (test patients: {errs.groupby('diagnosis').size().to_dict()}).
 - Figures: artifacts/results/figures/ (confusion, forest plots, per-class AUROC, curves, agent trajectory).
 """))
     (res_dir / "report_facts.md").write_text("\n".join(out))

@@ -21,6 +21,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 
 import numpy as np
+import torch
 import torch.nn as nn
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import StratifiedKFold
@@ -85,6 +86,7 @@ class NeuralPipeline(Pipeline):
         ]
         self.inputs = StreamInput(models, transforms, early_concat=self.spec.family == "early_concat")
         self.age_stats = ctx.age_stats(train_ids)
+        torch.manual_seed(seed)  # weight init must depend on the seed only
         self.model = self._build(ctx, self.inputs)
         cov = ctx.covariates(train_ids, self.age_stats) if self.spec.use_meta else None
         cov_val = ctx.covariates(val_ids, self.age_stats) if (self.spec.use_meta and val_ids) else None

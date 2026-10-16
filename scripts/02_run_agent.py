@@ -17,6 +17,7 @@ points at the newest run.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import time
 from pathlib import Path
@@ -32,6 +33,7 @@ from pathfusion.agent.space import SearchSpace  # noqa: E402
 from pathfusion.config import load_config  # noqa: E402
 from pathfusion.data.splits import load_cv_folds, load_split  # noqa: E402
 from pathfusion.embeddings.store import FeatureStore  # noqa: E402
+from pathfusion.eval.plots import plot_agent_trajectory  # noqa: E402
 from pathfusion.training.context import DataContext  # noqa: E402
 from pathfusion.utils.io import dump_json, git_commit  # noqa: E402
 from pathfusion.utils.logging import get_logger  # noqa: E402
@@ -72,6 +74,8 @@ def main() -> None:
 
     outcome = AgentLoop(evaluator, space.reference_specs(), proposer, cfg.agent, out_dir, cfg.seed).run()
     (cfg.paths.resolve("agent_dir") / "LATEST").write_text(run_id + "\n")
+    records = [json.loads(line) for line in (out_dir / "decisions.jsonl").read_text().splitlines()]
+    plot_agent_trajectory(records, out_dir / "trajectory.png")
     log.info("stop: %s", outcome.stop_reason)
     log.info("best single + meta: %s (CV %.3f)", outcome.best_reference.spec.short(),
              outcome.best_reference.result.mean)

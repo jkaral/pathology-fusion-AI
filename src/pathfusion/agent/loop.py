@@ -7,7 +7,7 @@ Guardrails against validation overfitting (the brief's failure mode):
 2. **Explicit budget**: at most ``budget`` fusion trials (default 24) plus 3 references.
 3. **Noise-aware acceptance**: a trial becomes the incumbent only if its fold-paired gain
    over the incumbent exceeds ``acceptance_z`` x Nadeau-Bengio-corrected SE.
-4. **Stopping**: budget exhausted, ``patience`` trials without an accepted improvement,
+4. **Stopping**: budget exhausted, ``patience`` adaptive trials without an accepted improvement,
    the proposer has nothing left, or the LLM asks to stop (only after ``min_trials``).
 5. **Final pick by the one-standard-error rule**: among fusion trials within one SE of
    the best CV mean, take the least complex; ranking noise is not rewarded.
@@ -115,7 +115,7 @@ class AgentLoop:
             if accepted:
                 st.incumbent = rec
                 st.since_improvement = 0
-            else:
+            elif phase == "adaptive":  # the fixed coverage design does not consume patience
                 st.since_improvement += 1
             rec.incumbent_after = st.incumbent.spec.short()
             self._record(rec)

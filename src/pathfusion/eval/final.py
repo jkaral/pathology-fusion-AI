@@ -92,19 +92,23 @@ def train_rows(cfg: Config, ctx: DataContext, rows: list[Row], train_ids: list[s
             tracker.finish()
 
 
+def _sd(x: np.ndarray) -> float:
+    return float(np.std(x, ddof=1)) if len(x) > 1 else 0.0
+
+
 def summarise(cfg: Config, ctx: DataContext, rows: list[Row], test_ids: list[str]) -> dict:
     y = ctx.labels(test_ids)
     n_c = ctx.n_classes
     out: dict = {"rows": [], "paired": {}, "n_test": len(test_ids), "seeds": cfg.eval.seeds}
     for row in rows:
         per_seed = [compute_metrics(y, p, n_c) for p in row.test_probs]
+        auc = np.array([m["macro_auroc"] for m in per_seed])
+        bacc = np.array([m["balanced_accuracy"] for m in per_seed])
         ens = row.ensemble
         rec = {
             "name": row.name, "label": row.label, "spec": row.spec.to_dict(),
-            "auroc_seed_mean": float(np.mean([m["macro_auroc"] for m in per_seed])),
-            "auroc_seed_sd": float(np.std([m["macro_auroc"] for m in per_seed], ddof=1)) if len(per_seed) > 1 else 0.0,
-            "bacc_seed_mean": float(np.mean([m["balanced_accuracy"] for m in per_seed])),
-            "bacc_seed_sd": float(np.std([m["balanced_accuracy"] for m in per_seed], ddof=1)) if len(per_seed) > 1 else 0.0,
+            "auroc_seed_mean": float(auc.mean()), "auroc_seed_sd": _sd(auc),
+            "bacc_seed_mean": float(bacc.mean()), "bacc_seed_sd": _sd(bacc),
             "macro_auroc": bootstrap_ci(y, ens, metric_fn("macro_auroc", n_c), cfg.eval.n_bootstrap, cfg.eval.ci, 0),
             "balanced_accuracy": bootstrap_ci(y, ens, metric_fn("balanced_accuracy", n_c), cfg.eval.n_bootstrap,
                                               cfg.eval.ci, 0),

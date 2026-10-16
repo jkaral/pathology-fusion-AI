@@ -25,7 +25,8 @@ class FakeEncoder(TileEncoder):
 
     def _build(self):
         torch.manual_seed(0)
-        net = torch.nn.Sequential(torch.nn.AdaptiveAvgPool2d(4), torch.nn.Flatten(), torch.nn.Linear(48, self.embed_dim))
+        nn = torch.nn
+        net = nn.Sequential(nn.AdaptiveAvgPool2d(4), nn.Flatten(), nn.Linear(48, self.embed_dim))
         return net, Preprocess(32, (self._mean,) * 3, (0.25,) * 3, "bilinear")
 
     def _forward(self, x):

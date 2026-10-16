@@ -92,7 +92,9 @@ class ScriptedLLM(ChatLLM):
 
 def _state_after_coverage(space):
     st = AgentState(budget=30)
-    for s in space.reference_specs() + space.coverage_specs():
+    for s in space.reference_specs():
+        st.records.append(_fake_record(len(st.records), s, 0.7, "reference"))
+    for s in space.coverage_specs():
         st.records.append(_fake_record(len(st.records), s, 0.7, "coverage"))
     st.incumbent = st.records[0]
     return st

@@ -21,7 +21,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 from pathfusion.agent.llm import ChatLLM, extract_json
-from pathfusion.agent.space import SearchSpace
+from pathfusion.agent.space import FUSION_FAMILIES, SearchSpace
 from pathfusion.agent.state import AgentState, TrialRecord
 from pathfusion.fusion.spec import FusionSpec
 from pathfusion.utils.logging import get_logger
@@ -59,6 +59,7 @@ def _fmt(r: TrialRecord) -> str:
 
 class DeterministicProposer(Proposer):
     name = "deterministic"
+    max_anchors = 4
 
     def propose(self, state: AgentState, min_trials: int) -> Proposal:
         cov = self.coverage_next(state)
@@ -68,15 +69,15 @@ class DeterministicProposer(Proposer):
         ranked = sorted(state.fusion_records, key=lambda r: -r.result.mean)
         anchors = ([state.incumbent] if state.incumbent and state.incumbent.phase != "reference" else []) + ranked
         seen: set[str] = set()
-        for rank, anchor in enumerate(anchors):
-            if anchor.spec.key in seen:
+        for anchor in anchors:
+            if anchor.spec.key in seen or anchor.spec.family not in FUSION_FAMILIES:
                 continue
             seen.add(anchor.spec.key)
             for label, nb in self.space.neighbors(anchor.spec):
                 if nb.key not in tried:
-                    role = "incumbent" if anchor is state.incumbent else f"rank-{rank} trial"
+                    role = "incumbent" if anchor is state.incumbent else f"rank-{len(seen)} fusion trial"
                     return Proposal(nb, f"local move from {role} ({_fmt(anchor)}): {label}", self.name)
-            if rank >= 3:  # only refine around the top few configurations
+            if len(seen) >= self.max_anchors:  # only refine around the top few configurations
                 break
         return Proposal(None, "no untried one-knob neighbours of the top configurations remain", self.name,
                         stop=True)
