@@ -27,7 +27,7 @@ python -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt          # pinned; CPU-capable stages, tests, agent, evaluation
 pip install -r requirements-extract.txt  # + timm/transformers/pyvips for stage 1
 pip install -e .                         # optional; scripts also work without installing
-pytest                                   # full test suite on synthetic features, about 1 min on CPU
+pytest                                   # 55 tests on synthetic features, about 1 min on CPU
 ```
 
 Secrets are only ever read from the environment: `HF_TOKEN` (gated UNI2-h / Virchow2),
@@ -120,6 +120,11 @@ Everything goes to `decisions.jsonl` / `decisions.md`.
 - Reported for each row: macro OvR AUROC (per class too) and balanced accuracy, as mean ± sd across seeds, plus the seed ensemble with a 95% stratified patient-bootstrap CI.
 - Paired bootstrap differences of fused minus each row; confusion matrices; per-patient error analysis against the pathologist's `Multi_Subtypes`.
 - `TEST_LOCK.json` makes test use a one-time, audited event.
+
+## Running it
+
+The GPU steps (Kaggle) are in **`docs/RUNBOOK.md`**; what was built and verified at each
+checkpoint is in **`docs/WORKLOG.md`**.
 
 ## Reproducing
 

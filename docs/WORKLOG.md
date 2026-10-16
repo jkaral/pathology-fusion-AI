@@ -120,3 +120,14 @@ Newest entries at the bottom. Each checkpoint corresponds to a commit on
 - The local LLM backend frees cached GPU memory before loading, because Qwen loads mid-run
   after MIL training has allocated memory.
 - `pytest`: **55 passed**; ruff clean.
+
+## Checkpoint 4: handover
+
+- `docs/RUNBOOK.md`: the exact Kaggle steps (stage 1 notebook → dataset → stage 2+3
+  notebook → commit the results bundle → fact sheet).
+- README links to the runbook and this log.
+- **Not done here, by design:** real feature extraction, the agent run and the test
+  evaluation all need the Kaggle GPU and your gated-model access. No result numbers exist
+  yet, and none have been made up. The only numbers produced so far come from synthetic
+  smoke runs, which were never committed as results.
+- **Blocked:** `git push` returns 403 until the Claude GitHub App is installed on the repo.
