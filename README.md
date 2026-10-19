@@ -17,6 +17,15 @@ Dataset: [`kmmuleelab/Lung_Pathology_Image_JPG`](https://huggingface.co/datasets
 | 2. Agent fusion search | `scripts/02_run_agent.py` | GPU recommended (CPU works) | `artifacts/agent/<run>/` |
 | 3. Final evaluation (test once) | `scripts/03_final_evaluation.py` | GPU recommended | `artifacts/results/` |
 | 4. Report fact sheet | `scripts/04_report_facts.py` | CPU | `artifacts/results/report_facts.md` |
+| 5. Metadata signal + test-set resolving power | `scripts/05_metadata_and_uncertainty.py` | CPU, seconds | `artifacts/analysis/` |
+| 6. Tiling statistics + QC contact sheets | `scripts/06_tiling_qc_report.py` | CPU | `<run>/tiling/` |
+| 7. Batch / shortcut probe | `scripts/07_batch_probe.py` | CPU | `<run>/batch_probe/` |
+
+**Pilot on real data (no credentials, no GPU):** `conf/pilot.yaml` runs stages 1-2 and the probes
+on all 203 real slides with three *ungated* encoders (Phikon-v2, Phikon, Lunit-DINO) at 256
+tiles/slide on CPU (bf16), scored by development CV only. Stage 3 is never run on the pilot, so
+the test split stays reserved for the headline run. Results: `artifacts/pilot/`.
+Usage: `PATHFUSION_CONFIG=conf/pilot.yaml python scripts/01_extract_embeddings.py`.
 
 Stages 2 and 3 run back to back in `notebooks/kaggle_02_agent_and_evaluation.ipynb`.
 
@@ -27,7 +36,7 @@ python -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt          # pinned; CPU-capable stages, tests, agent, evaluation
 pip install -r requirements-extract.txt  # + timm/transformers/pyvips for stage 1
 pip install -e .                         # optional; scripts also work without installing
-pytest                                   # 55 tests on synthetic features, about 1 min on CPU
+pytest                                   # 59 tests on synthetic features, a few minutes on CPU
 ```
 
 Secrets are only ever read from the environment: `HF_TOKEN` (gated UNI2-h / Virchow2),
@@ -113,6 +122,16 @@ Defences against overfitting the validation data:
 - A bootstrap estimates the *winner's-curse optimism* of the best CV score.
 
 Everything goes to `decisions.jsonl` / `decisions.md`.
+
+**Equal-budget control.** The best-single-model row is tuned by the *same* agent with the
+*same* trial budget and one-SE rule, over its own knobs (which model, normalisation, PCA)
+(`SearchSpace(mode="single")`). A fused-vs-single gain therefore can't come from extra tuning.
+
+**Known risk: acquisition-order shortcut.** Slide IDs are grouped by subtype, and the ID number
+alone predicts subtype with development-CV macro AUROC 0.78 (age + sex: 0.59). If staining or
+scanning batches follow ID order, image features could encode batch. `scripts/07_batch_probe.py`
+tests this. `tiling.stain_normalization: macenko` (per-slide Macenko fit, applied to every tile
+before encoding) is the built-in mitigation.
 
 **Evaluation** (`eval/final.py`):
 - Rows: metadata only; each model alone; best single + metadata (chosen by CV); fused + metadata (chosen by the agent).

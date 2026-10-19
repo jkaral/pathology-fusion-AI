@@ -45,6 +45,7 @@ tiling:
   min_tissue_fraction: 0.5
   saturation_floor: 0.05       # Otsu threshold is clipped below by this (blank slides)
   max_tiles: 4096              # seeded random cap per slide (null = keep all)
+  stain_normalization: none    # none | macenko (per-slide fit on the thumbnail; see data/stain.py)
 
 extract:
   models: [uni2h, virchow2, phikonv2]

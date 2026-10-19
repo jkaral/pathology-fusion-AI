@@ -93,7 +93,8 @@ later, refine around configurations that are genuinely ahead. Do not re-run trie
 Prefer simpler configurations when results are within noise. If remaining improvements are plausibly \
 below the noise level, you may stop.
 Reply with ONE JSON object only, no prose outside it:
-{{"action": "propose" or "stop", "config": {{...}} (omit when stopping), "reasoning": "<=2 sentences"}}"""
+{{"reasoning": "<=2 sentences: what the results so far suggest and why this next trial is informative", \
+"action": "propose" or "stop", "config": {{...}} (omit when stopping)}}"""
 
 
 class LLMProposer(Proposer):
@@ -144,7 +145,7 @@ class LLMProposer(Proposer):
             self.transcript.append({"user": user, "reply": reply})
             try:
                 obj = extract_json(reply)
-                reasoning = str(obj.get("reasoning", "")).strip()
+                reasoning = str(obj.get("reasoning", "")).strip() or "(no reasoning given by the LLM)"
                 if obj.get("action") == "stop":
                     if state.trials_used >= min_trials:
                         return Proposal(None, reasoning or "LLM requested stop", self.name, stop=True)

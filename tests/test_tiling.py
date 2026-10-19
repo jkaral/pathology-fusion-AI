@@ -62,3 +62,22 @@ def test_qc_overlay_written(tmp_path):
     grid = make_tile_grid(img, TilingCfg(tile_size=128, stride=128, max_tiles=None), "WSI-1")
     save_qc_overlay(grid, 128, 16, tmp_path / "qc.jpg")
     assert (tmp_path / "qc.jpg").stat().st_size > 1000
+
+
+def test_macenko_removes_restaining_shift():
+    from pathfusion.data import stain as S
+    from pathfusion.data.stain import MacenkoNormalizer
+
+    img = fake_slide(512, 768, seed=3)
+    mask = img.mean(-1) < 235
+    a = MacenkoNormalizer.fit(img, mask)
+    px = img[mask]
+    conc = np.linalg.lstsq(a.he, S._od(px).T, rcond=None)[0]
+    he_alt = np.array([[0.65, 0.10], [0.70, 0.85], [0.30, 0.52]])
+    he_alt /= np.linalg.norm(he_alt, axis=0)
+    alt = np.clip(S.IO * np.exp(-(he_alt @ (conc * np.array([[1.3], [0.7]])))), 0, 255).T.astype(np.uint8)
+    b = MacenkoNormalizer.fit(alt, None)
+    raw = np.sqrt(((px.astype(float) - alt) ** 2).mean())
+    norm = np.sqrt(((a.transform(px).astype(float) - b.transform(alt)) ** 2).mean())
+    assert norm < 0.5 * raw
+    assert a.transform(img[:4, :4]).shape == (4, 4, 3)

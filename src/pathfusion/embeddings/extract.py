@@ -25,7 +25,7 @@ import tempfile
 import time
 from collections.abc import Callable, Iterator
 from concurrent.futures import Future, ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import h5py
@@ -34,6 +34,7 @@ import torch
 from PIL import Image
 
 from pathfusion.config import Config
+from pathfusion.data.stain import MacenkoNormalizer
 from pathfusion.data.tiling import (
     TileGrid,
     iter_tile_batches,
@@ -137,6 +138,7 @@ class PreparedSlide:
     img: np.ndarray
     grid: TileGrid
     seconds: dict[str, float]
+    normalizer: MacenkoNormalizer | None = None
 
 
 def save_thumbnail(grid: TileGrid, path: Path) -> None:
@@ -155,10 +157,19 @@ def prepare_slide(wsi_id: str, jpg: Path, cfg: Config, qc_dir: Path | None, t_do
     t0 = time.perf_counter()
     grid = make_tile_grid(img, tcfg, wsi_id)
     t_tiling = time.perf_counter() - t0
+    normalizer = None
+    if tcfg.stain_normalization == "macenko":
+        normalizer = MacenkoNormalizer.fit(grid.thumbnail, grid.mask)
+    elif tcfg.stain_normalization != "none":
+        raise ValueError(f"unknown stain_normalization {tcfg.stain_normalization!r}")
     if qc_dir is not None:
         save_qc_overlay(grid, tcfg.tile_size, tcfg.thumbnail_downsample, qc_dir / f"{wsi_id}.jpg")
         save_thumbnail(grid, qc_dir / "thumbs" / f"{wsi_id}.png")
-    return PreparedSlide(wsi_id, img, grid, {"download_s": t_download, "decode_s": t_decode, "tiling_s": t_tiling})
+        if normalizer is not None:
+            norm_grid = replace(grid, thumbnail=normalizer.transform(grid.thumbnail))
+            save_thumbnail(norm_grid, qc_dir / "thumbs_macenko" / f"{wsi_id}.png")
+    return PreparedSlide(wsi_id, img, grid, {"download_s": t_download, "decode_s": t_decode, "tiling_s": t_tiling},
+                         normalizer)
 
 
 def embed_slide(prep: PreparedSlide, encoders: list[TileEncoder], cfg: Config, out_dir: Path) -> SlideResult:
@@ -169,6 +180,8 @@ def embed_slide(prep: PreparedSlide, encoders: list[TileEncoder], cfg: Config, o
     feats = {e.name: np.zeros((n, e.embed_dim), dtype=np.float16) for e in encoders}
     gpu_ms = {e.name: 0.0 for e in encoders}
     for start, batch in iter_tile_batches(img, grid.coords, tcfg.tile_size, cfg.extract.batch_size):
+        if prep.normalizer is not None:
+            batch = prep.normalizer.transform(batch)
         tiles = torch.from_numpy(batch)
         if torch.cuda.is_available():
             tiles = tiles.pin_memory()
@@ -204,6 +217,7 @@ def embed_slide(prep: PreparedSlide, encoders: list[TileEncoder], cfg: Config, o
         fh.attrs["n_tissue_tiles"] = grid.n_candidates
         fh.attrs["tile_size"] = tcfg.tile_size
         fh.attrs["magnification"] = tcfg.target_magnification
+        fh.attrs["stain_normalization"] = tcfg.stain_normalization
         fh.attrs["encoders"] = json.dumps([e.describe() for e in encoders])
         fh.attrs["encode_ms"] = json.dumps(gpu_ms)
     os.replace(tmp, out_dir / f"{wsi_id}.h5")

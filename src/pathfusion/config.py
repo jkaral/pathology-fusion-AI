@@ -75,6 +75,7 @@ class TilingCfg:
     min_tissue_fraction: float = 0.5
     saturation_floor: float = 0.05
     max_tiles: int | None = 4096
+    stain_normalization: str = "none"   # none | macenko (fitted per slide on the thumbnail)
 
     @property
     def downsample(self) -> int:
