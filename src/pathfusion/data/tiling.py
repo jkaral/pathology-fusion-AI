@@ -59,14 +59,14 @@ def load_slide_at(path: str | Path, downsample: int) -> np.ndarray:
         return np.asarray(img.numpy(), dtype=np.uint8)
     except ImportError:
         pass
-    with Image.open(path) as im:
-        full_w, full_h = im.size
+    with Image.open(path) as src:
+        full_w, full_h = src.size
         target = (full_w // downsample, full_h // downsample)
-        im.draft("RGB", target)  # DCT scaling; no-op for non-JPEG inputs
-        im = im.convert("RGB")
-        if im.size != target:
-            im = im.resize(target, Image.Resampling.BOX)
-        return np.asarray(im)
+        src.draft("RGB", target)  # DCT scaling; no-op for non-JPEG inputs
+        rgb = src.convert("RGB")
+        if rgb.size != target:
+            rgb = rgb.resize(target, Image.Resampling.BOX)
+        return np.asarray(rgb)
 
 
 def _otsu(values: np.ndarray, bins: int = 256) -> float:

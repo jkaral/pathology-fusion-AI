@@ -20,6 +20,7 @@ import argparse
 import json
 import sys
 import time
+from dataclasses import replace
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -27,7 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import pandas as pd  # noqa: E402
 
 from pathfusion.agent.evaluator import CVEvaluator  # noqa: E402
-from pathfusion.agent.factory import make_proposer, resolve_backend  # noqa: E402
+from pathfusion.agent.factory import make_llm, make_proposer, resolve_backend  # noqa: E402
 from pathfusion.agent.loop import AgentLoop  # noqa: E402
 from pathfusion.agent.space import SearchSpace  # noqa: E402
 from pathfusion.config import load_config  # noqa: E402
@@ -65,7 +66,8 @@ def main() -> None:
 
     space = SearchSpace(cfg.extract.models)
     evaluator = CVEvaluator(ctx, folds, cfg.agent.selection_metric, cfg.seed)
-    proposer = make_proposer(cfg.agent, space, n_dev=len(dev_ids), n_folds=len(evaluator.splits))
+    llm = make_llm(cfg.agent)  # one (lazily loaded) LLM shared by both searches
+    proposer = make_proposer(cfg.agent, space, n_dev=len(dev_ids), n_folds=len(evaluator.splits), llm=llm)
     run_id = args.run_id or time.strftime("%Y%m%d-%H%M%S") + f"_{resolve_backend(cfg.agent)}"
     out_dir = cfg.paths.resolve("agent_dir") / run_id
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -73,6 +75,30 @@ def main() -> None:
                "device": str(ctx.device)}, out_dir / "config.json")
 
     outcome = AgentLoop(evaluator, space.reference_specs(), proposer, cfg.agent, out_dir, cfg.seed).run()
+    if cfg.agent.equal_budget_single_search:
+        # Equal-budget control: the same agent/selection rule over single-model configs, with
+        # exactly as many trials as the fusion search used. Shares the evaluator, so folds,
+        # seed and cached reference fits are identical.
+        single_space = SearchSpace(cfg.extract.models, mode="single")
+        scfg = replace(cfg.agent, budget=outcome.state.trials_used)
+        sprop = make_proposer(scfg, single_space, n_dev=len(dev_ids), n_folds=len(evaluator.splits), llm=llm)
+        single = AgentLoop(evaluator, single_space.reference_specs(), sprop, scfg, out_dir / "single_search",
+                           cfg.seed, select_from_references=True).run()
+        gain = evaluator.paired(outcome.selected.result, single.selected.result)
+        sel_path = out_dir / "selected.json"
+        sel = json.loads(sel_path.read_text())
+        sel.update({
+            "best_single_tuned": single.selected.spec.to_dict(),
+            "best_single_tuned_short": single.selected.spec.short(),
+            "best_single_tuned_cv_mean": single.selected.result.mean,
+            "single_search_trials": single.state.trials_used,
+            "cv_gain_vs_tuned_single": gain.mean, "cv_gain_vs_tuned_single_se": gain.se,
+            "cv_gain_vs_tuned_single_significant": bool(gain.mean > 0 and gain.mean > gain.se),
+        })
+        dump_json(sel, sel_path)
+        log.info("equal-budget single search (%d trials): %s (CV %.3f); fused gain %+.3f ± %.3f",
+                 single.state.trials_used, single.selected.spec.short(), single.selected.result.mean,
+                 gain.mean, gain.se)
     (cfg.paths.resolve("agent_dir") / "LATEST").write_text(run_id + "\n")
     records = [json.loads(line) for line in (out_dir / "decisions.jsonl").read_text().splitlines()]
     plot_agent_trajectory(records, out_dir / "trajectory.png")

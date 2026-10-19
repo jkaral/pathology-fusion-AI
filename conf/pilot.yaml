@@ -1,0 +1,27 @@
+# CPU pilot with UNGATED encoders (runs without credentials or a GPU).
+# Layered on top of default.yaml:  PATHFUSION_CONFIG=conf/pilot.yaml python scripts/...
+# Purpose: exercise the full pipeline on REAL slides and features and measure how hard the
+# task is, using development-set CV only. It never runs stage 3, so the test split stays untouched.
+# The headline run (UNI2-h, Virchow2, Phikon-v2 at up to 4096 tiles) is default.yaml on GPU.
+paths:
+  embeddings_dir: artifacts/embeddings_pilot
+  agent_dir: artifacts/pilot/agent
+  results_dir: artifacts/pilot/results
+  qc_dir: artifacts/qc
+
+tiling:
+  max_tiles: 256          # reduced tile budget so three encoders fit a CPU-hours budget
+
+extract:
+  models: [phikonv2, phikon, lunit_dino]
+  batch_size: 64
+
+train:
+  train_tiles: 128
+  eval_tiles: 256
+  device: cpu
+
+agent:
+  proposer: local_llm     # small open LLM on CPU (bf16); the deterministic fallback is still active
+  llm:
+    local_model: Qwen/Qwen2.5-3B-Instruct

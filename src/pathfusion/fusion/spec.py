@@ -103,7 +103,7 @@ class FusionSpec:
 
     def complexity(self) -> float:
         """Rough ordinal model complexity, used by the one-standard-error selection rule."""
-        base = {"meta_only": 0, "single": 1, "early_concat": 3, "late": 2, "intermediate": 5}[self.family]
+        base: float = {"meta_only": 0, "single": 1, "early_concat": 3, "late": 2, "intermediate": 5}[self.family]
         if self.family == "late":
             base += {"prob_mean": 0, "logit_mean": 0, "weighted": 1, "stacking": 2}[self.late_rule]
         if self.family == "intermediate":

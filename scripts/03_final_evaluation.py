@@ -76,6 +76,11 @@ def write_markdown(res: dict, agent: dict, classes: list[str], path: Path) -> No
               f"- CV gain {agent['cv_gain_vs_best_single']:+.3f} ± {agent['cv_gain_se']:.3f} "
               f"(significant at 1 SE: {agent['cv_gain_significant']})",
               f"- Selection optimism: {agent['selection_optimism'].get('optimism', float('nan')):.3f}"]
+    if "best_single_tuned_short" in agent:
+        lines += [f"- Equal-budget single-model search ({agent['single_search_trials']} trials): "
+                  f"{agent['best_single_tuned_short']} (CV {agent['best_single_tuned_cv_mean']:.3f}); fused gain vs it "
+                  f"{agent['cv_gain_vs_tuned_single']:+.3f} ± {agent['cv_gain_vs_tuned_single_se']:.3f} "
+                  f"(significant at 1 SE: {agent['cv_gain_vs_tuned_single_significant']})"]
     path.write_text("\n".join(lines) + "\n")
 
 
@@ -95,7 +100,9 @@ def main() -> None:
     run_id = args.agent_run or (agent_root / "LATEST").read_text().strip()
     agent = load_json(agent_root / run_id / "selected.json")
     fused = FusionSpec.from_dict(agent["selected"])
-    best_single = FusionSpec.from_dict(agent["best_reference"]).models[0]
+    # equal-budget tuned single model if the control search ran, else the default single
+    best_single_spec = FusionSpec.from_dict(agent.get("best_single_tuned", agent["best_reference"]))
+    best_single = best_single_spec.models[0]
 
     # ---------------------------------------------------------------- test lock
     lock_path = res_dir / "TEST_LOCK.json"
@@ -119,7 +126,7 @@ def main() -> None:
     store = FeatureStore.from_dir(emb_dir, cohort, cfg.extract.models, max_tiles=cfg.train.eval_tiles)
     ctx = DataContext.build(cohort, store, cfg.data.classes, cfg.train)
 
-    rows = table_rows(cfg.extract.models, best_single, fused)
+    rows = table_rows(cfg.extract.models, best_single_spec, fused)
     train_rows(cfg, ctx, rows, ids["train"], ids["val"], ids["test"])
     res = summarise(cfg, ctx, rows, ids["test"])
     res["agent_run"] = run_id

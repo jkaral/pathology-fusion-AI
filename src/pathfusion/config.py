@@ -9,6 +9,7 @@ Example::
 from __future__ import annotations
 
 import dataclasses
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, get_type_hints
@@ -129,6 +130,7 @@ class AgentCfg:
     selection_metric: str = "macro_auroc"
     bootstrap_optimism: int = 200
     proposer: str = "auto"
+    equal_budget_single_search: bool = True
     llm: LLMCfg = field(default_factory=LLMCfg)
 
 
@@ -188,11 +190,29 @@ def _set_dotted(tree: dict[str, Any], dotted: str, value: Any) -> None:
     node[keys[-1]] = value
 
 
+def _deep_merge(base: dict[str, Any], top: dict[str, Any]) -> dict[str, Any]:
+    out = dict(base)
+    for k, v in top.items():
+        out[k] = _deep_merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else v
+    return out
+
+
 def load_config(path: str | Path | None = None, overrides: list[str] | None = None) -> Config:
-    """Load YAML config and apply ``key.sub=value`` overrides (values parsed as YAML)."""
-    path = Path(path) if path else DEFAULT_CONFIG
-    with open(path) as fh:
+    """Load ``conf/default.yaml``, deep-merge an optional variant file on top, then apply
+    ``key.sub=value`` overrides (values parsed as YAML).
+
+    The variant file is ``path`` or the ``PATHFUSION_CONFIG`` environment variable, e.g.
+    ``PATHFUSION_CONFIG=conf/pilot.yaml python scripts/02_run_agent.py``.
+    """
+    with open(DEFAULT_CONFIG) as fh:
         raw: dict[str, Any] = yaml.safe_load(fh) or {}
+    variant = path or os.environ.get("PATHFUSION_CONFIG")
+    if variant:
+        vpath = Path(variant)
+        vpath = vpath if vpath.is_absolute() else REPO_ROOT / vpath
+        if vpath.resolve() != DEFAULT_CONFIG.resolve():
+            with open(vpath) as fh:
+                raw = _deep_merge(raw, yaml.safe_load(fh) or {})
     for item in overrides or []:
         if "=" not in item:
             raise ValueError(f"Override must look like key=value, got {item!r}")

@@ -79,6 +79,8 @@ agent:
   selection_metric: macro_auroc
   bootstrap_optimism: 200
   proposer: auto               # auto | deterministic | local_llm | openai_compatible
+  # control: give the best-single-model row the same agent, budget and selection rule
+  equal_budget_single_search: true
   llm:
     local_model: Qwen/Qwen2.5-7B-Instruct
     max_new_tokens: 400

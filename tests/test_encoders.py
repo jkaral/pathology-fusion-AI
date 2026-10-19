@@ -24,7 +24,7 @@ def _attach(enc, model, pp):
 
 
 def test_registry_dims():
-    assert EMBED_DIMS == {"uni2h": 1536, "virchow2": 2560, "phikonv2": 1024}
+    assert EMBED_DIMS == {"uni2h": 1536, "virchow2": 2560, "phikonv2": 1024, "phikon": 768, "lunit_dino": 384}
 
 
 def test_uni2h_architecture_and_card_preprocessing():
@@ -44,10 +44,13 @@ def test_virchow2_concatenates_cls_and_patch_mean():
     enc = _attach(get_encoder("virchow2"), model, timm_preprocess(model))
     out = enc.encode(X)
     assert out.shape == (2, 2560)
-    tokens = model.forward_features(enc.preprocess(X))
+    with torch.inference_mode():
+        tokens = model.forward_features(enc.preprocess(X))   # fp32 reference
     assert model.num_prefix_tokens == 5 and tokens.shape[1] == 5 + 256
-    assert torch.allclose(out[:, :1280], tokens[:, 0], atol=1e-4)
-    assert torch.allclose(out[:, 1280:], tokens[:, 5:].mean(1), atol=1e-4)
+    cos = torch.nn.functional.cosine_similarity  # encode() may run in bf16 on AMX CPUs
+    assert cos(out[:, :1280], tokens[:, 0]).min() > 0.999
+    assert cos(out[:, 1280:], tokens[:, 5:].mean(1)).min() > 0.999
+    assert cos(out[:, 1280:], tokens[:, 1:].mean(1)).min() < cos(out[:, 1280:], tokens[:, 5:].mean(1)).min()
 
 
 def test_phikonv2_cls_token():
@@ -57,6 +60,12 @@ def test_phikonv2_cls_token():
     model = transformers.Dinov2Model(cfg)
     enc = _attach(get_encoder("phikonv2"), model, Preprocess(224, IMAGENET_MEAN, IMAGENET_STD))
     assert enc.encode(X).shape == (2, 1024)
+
+
+def test_lunit_uses_official_normalisation():
+    from pathfusion.embeddings.lunit_dino import LUNIT_MEAN
+
+    assert LUNIT_MEAN[0] == pytest.approx(0.70322989)
 
 
 def test_preprocess_resizes_and_normalises():

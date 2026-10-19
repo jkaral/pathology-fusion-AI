@@ -12,7 +12,7 @@ from __future__ import annotations
 import importlib.util
 import os
 
-from pathfusion.agent.llm import LocalHFChat, OpenAICompatChat
+from pathfusion.agent.llm import ChatLLM, LocalHFChat, OpenAICompatChat
 from pathfusion.agent.proposers import DeterministicProposer, LLMProposer, Proposer
 from pathfusion.agent.space import SearchSpace
 from pathfusion.config import AgentCfg
@@ -37,16 +37,26 @@ def resolve_backend(cfg: AgentCfg) -> str:
     return "deterministic"
 
 
-def make_proposer(cfg: AgentCfg, space: SearchSpace, n_dev: int, n_folds: int) -> Proposer:
+def make_llm(cfg: AgentCfg) -> ChatLLM | None:
+    """The chat backend for ``cfg`` (None for the deterministic proposer). Loaded lazily."""
     backend = resolve_backend(cfg)
     log.info("proposer backend: %s", backend)
     if backend == "deterministic":
-        return DeterministicProposer(space)
+        return None
     if backend == "local_llm":
-        llm = LocalHFChat(cfg.llm)
-    elif backend == "openai_compatible":
-        llm = OpenAICompatChat(cfg.llm)
-    else:
-        raise ValueError(f"unknown proposer {backend!r}")
+        return LocalHFChat(cfg.llm)
+    if backend == "openai_compatible":
+        return OpenAICompatChat(cfg.llm)
+    raise ValueError(f"unknown proposer {backend!r}")
+
+
+def make_proposer(cfg: AgentCfg, space: SearchSpace, n_dev: int, n_folds: int,
+                  llm: ChatLLM | None | str = "auto") -> Proposer:
+    """Build the proposer; pass an existing ``llm`` to share one loaded model across searches."""
+    if llm == "auto":
+        llm = make_llm(cfg)
+    if llm is None:
+        return DeterministicProposer(space)
+    assert not isinstance(llm, str)
     return LLMProposer(space, llm, cfg.acceptance_z, cfg.llm.max_retries, n_dev=n_dev, n_folds=n_folds,
                        metric=cfg.selection_metric)

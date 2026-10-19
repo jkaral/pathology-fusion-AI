@@ -1,0 +1,53 @@
+[
+  {
+    "name": "phikonv2",
+    "hf_repo": "owkin/phikon-v2",
+    "embed_dim": 1024,
+    "input_size": 224,
+    "mean": [
+      0.485,
+      0.456,
+      0.406
+    ],
+    "std": [
+      0.229,
+      0.224,
+      0.225
+    ],
+    "interpolation": "bicubic"
+  },
+  {
+    "name": "phikon",
+    "hf_repo": "owkin/phikon",
+    "embed_dim": 768,
+    "input_size": 224,
+    "mean": [
+      0.485,
+      0.456,
+      0.406
+    ],
+    "std": [
+      0.229,
+      0.224,
+      0.225
+    ],
+    "interpolation": "bilinear"
+  },
+  {
+    "name": "lunit_dino",
+    "hf_repo": "1aurent/vit_small_patch16_224.lunit_dino",
+    "embed_dim": 384,
+    "input_size": 224,
+    "mean": [
+      0.70322989,
+      0.53606487,
+      0.66096631
+    ],
+    "std": [
+      0.21716536,
+      0.26081574,
+      0.20723464
+    ],
+    "interpolation": "bicubic"
+  }
+]

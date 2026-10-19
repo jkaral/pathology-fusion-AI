@@ -55,12 +55,12 @@ class Row:
         return np.mean(self.test_probs, axis=0)
 
 
-def table_rows(models: list[str], best_single: str, fused: FusionSpec) -> list[Row]:
+def table_rows(models: list[str], best_single: FusionSpec, fused: FusionSpec) -> list[Row]:
+    """``best_single`` is the equal-budget tuned single-model spec (or the default single)."""
     rows = [Row("meta_only", "Metadata only (age + sex)", FusionSpec("meta_only"))]
     for m in models:
         rows.append(Row(f"single_{m}", f"{m} alone", FusionSpec("single", (m,), use_meta=False)))
-    rows.append(Row("best_single_meta", f"Best single ({best_single}) + metadata",
-                    FusionSpec("single", (best_single,), use_meta=True)))
+    rows.append(Row("best_single_meta", f"Best single + metadata: {best_single.short()}", best_single))
     rows.append(Row("fused", f"Fused (agent): {fused.short()}", fused))
     return rows
 

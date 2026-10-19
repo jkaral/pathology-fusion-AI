@@ -31,9 +31,11 @@ from pathlib import Path
 import h5py
 import numpy as np
 import torch
+from PIL import Image
 
 from pathfusion.config import Config
 from pathfusion.data.tiling import (
+    TileGrid,
     iter_tile_batches,
     load_slide_at,
     make_tile_grid,
@@ -129,20 +131,40 @@ class SlideResult:
     seconds: dict[str, float]
 
 
-def extract_slide(
-    wsi_id: str, jpg: Path, encoders: list[TileEncoder], cfg: Config, out_dir: Path, qc_dir: Path | None
-) -> SlideResult:
+@dataclass
+class PreparedSlide:
+    wsi_id: str
+    img: np.ndarray
+    grid: TileGrid
+    seconds: dict[str, float]
+
+
+def save_thumbnail(grid: TileGrid, path: Path) -> None:
+    """Lossless 1.25x thumbnail + tissue mask (alpha) for later stain / batch analyses."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    rgba = np.dstack([grid.thumbnail, (grid.mask * 255).astype(np.uint8)])
+    Image.fromarray(rgba, "RGBA").save(path, optimize=True)
+
+
+def prepare_slide(wsi_id: str, jpg: Path, cfg: Config, qc_dir: Path | None, t_download: float) -> PreparedSlide:
+    """CPU part: decode at 20x, tissue mask, tile grid, QC overlay (runs one slide ahead)."""
     tcfg = cfg.tiling
     t0 = time.perf_counter()
     img = load_slide_at(jpg, tcfg.downsample)
     t_decode = time.perf_counter() - t0
-
     t0 = time.perf_counter()
     grid = make_tile_grid(img, tcfg, wsi_id)
     t_tiling = time.perf_counter() - t0
     if qc_dir is not None:
         save_qc_overlay(grid, tcfg.tile_size, tcfg.thumbnail_downsample, qc_dir / f"{wsi_id}.jpg")
+        save_thumbnail(grid, qc_dir / "thumbs" / f"{wsi_id}.png")
+    return PreparedSlide(wsi_id, img, grid, {"download_s": t_download, "decode_s": t_decode, "tiling_s": t_tiling})
 
+
+def embed_slide(prep: PreparedSlide, encoders: list[TileEncoder], cfg: Config, out_dir: Path) -> SlideResult:
+    """Encoder part: every encoder on the same tile batches, then an atomic .h5 write."""
+    tcfg = cfg.tiling
+    grid, img, wsi_id = prep.grid, prep.img, prep.wsi_id
     n = len(grid.coords)
     feats = {e.name: np.zeros((n, e.embed_dim), dtype=np.float16) for e in encoders}
     gpu_ms = {e.name: 0.0 for e in encoders}
@@ -150,7 +172,7 @@ def extract_slide(
         tiles = torch.from_numpy(batch)
         if torch.cuda.is_available():
             tiles = tiles.pin_memory()
-        pending = []
+        pending: list[tuple[TileEncoder, torch.Tensor, torch.cuda.Event | None, torch.cuda.Event | None]] = []
         for enc in encoders:  # launch on every device before syncing -> GPUs overlap
             if enc.device.type == "cuda":
                 ev0 = torch.cuda.Event(enable_timing=True)
@@ -165,12 +187,11 @@ def extract_slide(
                 out = enc.encode(tiles)
                 gpu_ms[enc.name] += 1000 * (time.perf_counter() - c0)
                 pending.append((enc, out, None, None))
-        for enc, out, ev0, ev1 in pending:
+        for enc, out, start_ev, end_ev in pending:
             feats[enc.name][start:start + len(batch)] = out.cpu().numpy().astype(np.float16)
-            if ev0 is not None:
-                ev1.synchronize()
-                gpu_ms[enc.name] += ev0.elapsed_time(ev1)
-    del img
+            if start_ev is not None and end_ev is not None:
+                end_ev.synchronize()
+                gpu_ms[enc.name] += start_ev.elapsed_time(end_ev)
 
     tmp = out_dir / f"{wsi_id}.h5.tmp"
     with h5py.File(tmp, "w") as fh:
@@ -186,8 +207,15 @@ def extract_slide(
         fh.attrs["encoders"] = json.dumps([e.describe() for e in encoders])
         fh.attrs["encode_ms"] = json.dumps(gpu_ms)
     os.replace(tmp, out_dir / f"{wsi_id}.h5")
-    secs = {"decode_s": t_decode, "tiling_s": t_tiling, **{f"{k}_s": v / 1000 for k, v in gpu_ms.items()}}
+    secs = {**prep.seconds, **{f"{k}_s": v / 1000 for k, v in gpu_ms.items()}}
     return SlideResult(wsi_id, n, secs)
+
+
+def extract_slide(
+    wsi_id: str, jpg: Path, encoders: list[TileEncoder], cfg: Config, out_dir: Path, qc_dir: Path | None
+) -> SlideResult:
+    """Prepare + embed one slide synchronously (convenience for single slides and tests)."""
+    return embed_slide(prepare_slide(wsi_id, jpg, cfg, qc_dir, 0.0), encoders, cfg, out_dir)
 
 
 def is_complete(path: Path, models: list[str]) -> bool:
@@ -217,15 +245,30 @@ def run_extraction(
         if new_file:
             writer.writeheader()
         t_start = time.perf_counter()
-        for k, (sid, path, t_dl) in enumerate(source.iterate(todo), 1):
+        items = source.iterate(todo)
+        prep_pool = ThreadPoolExecutor(max_workers=1)
+
+        def prepare(item: tuple[str, Path, float]) -> PreparedSlide:
+            sid, path, t_dl = item
             try:
-                res = extract_slide(sid, path, encoders, cfg, out_dir, qc_dir)
+                return prepare_slide(sid, path, cfg, qc_dir, t_dl)
             finally:
-                source.release(path)
+                source.release(path)  # the JPEG is no longer needed once decoded
+
+        nxt = next(items, None)
+        fut = prep_pool.submit(prepare, nxt) if nxt is not None else None
+        k = 0
+        while fut is not None:
+            prep = fut.result()
+            nxt = next(items, None)
+            fut = prep_pool.submit(prepare, nxt) if nxt is not None else None  # decode ahead
+            res = embed_slide(prep, encoders, cfg, out_dir)
+            sid = prep.wsi_id
+            del prep
+            k += 1
             with h5py.File(out_dir / f"{sid}.h5", "r") as h5:
                 row = {"WSI_ID": sid, "n_tiles": res.n_tiles, "n_tissue_tiles": int(h5.attrs["n_tissue_tiles"]),
                        "width_20x": int(h5.attrs["width_20x"]), "height_20x": int(h5.attrs["height_20x"]),
-                       "download_s": round(t_dl, 2),
                        "file_gb": round((sizes or {}).get(sid, 0) / 1e9, 3)}
             row.update({k2: round(v, 2) for k2, v in res.seconds.items()})
             writer.writerow(row)
@@ -234,6 +277,7 @@ def run_extraction(
             eta = elapsed / k * (len(todo) - k)
             log.info("[%d/%d] %s: %d tiles | %s | ETA %.0f min", k, len(todo), sid, res.n_tiles,
                      " ".join(f"{a}={b:.1f}s" for a, b in res.seconds.items()), eta / 60)
+        prep_pool.shutdown()
     return manifest
 
 

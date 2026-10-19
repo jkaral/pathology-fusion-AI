@@ -15,6 +15,7 @@ import os
 import time
 import urllib.request
 from abc import ABC, abstractmethod
+from typing import Any
 
 from pathfusion.config import LLMCfg
 from pathfusion.utils.logging import get_logger
@@ -34,8 +35,8 @@ class LocalHFChat(ChatLLM):
     def __init__(self, cfg: LLMCfg):
         self.cfg = cfg
         self.name = f"local:{cfg.local_model}"
-        self._tok = None
-        self._model = None
+        self._tok: Any = None
+        self._model: Any = None
         self.calls = 0
 
     def _load(self) -> None:
@@ -46,8 +47,14 @@ class LocalHFChat(ChatLLM):
         if torch.cuda.is_available():  # MIL training ran first; give the LLM the cached memory back
             torch.cuda.empty_cache()
         self._tok = AutoTokenizer.from_pretrained(self.cfg.local_model)
-        dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-        self._model = AutoModelForCausalLM.from_pretrained(self.cfg.local_model, dtype=dtype, device_map="auto")
+        if torch.cuda.is_available():  # fp16 split over all GPUs (Qwen2.5-7B on 2x T4)
+            self._model = AutoModelForCausalLM.from_pretrained(self.cfg.local_model, dtype=torch.float16,
+                                                               device_map="auto")
+        else:  # CPU: bf16 halves memory and is fast on AMX/AVX512-BF16 CPUs
+            from pathfusion.embeddings.base import cpu_has_native_bf16
+
+            dtype = torch.bfloat16 if cpu_has_native_bf16() else torch.float32
+            self._model = AutoModelForCausalLM.from_pretrained(self.cfg.local_model, dtype=dtype)
         log.info("loaded %s in %.0fs", self.cfg.local_model, time.perf_counter() - t0)
 
     def chat(self, system: str, user: str) -> str:

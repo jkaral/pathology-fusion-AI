@@ -8,6 +8,10 @@ Coverage set: before any adaptive step, one representative per region of the spa
 evaluated (raw / L2 / z-score+PCA concatenation, three late rules, two learned
 intermediate schemes). This guarantees the space is actually spanned and gives the
 adaptive phase (deterministic or LLM) an informed starting map.
+
+``mode="single"`` is the *equal-budget control*: the same agent, budget and selection rule
+search single-model configurations (which model, per-model normalisation, PCA), so the
+"best single model + metadata" row receives the same tuning effort as the fused row.
 """
 
 from __future__ import annotations
@@ -26,12 +30,17 @@ from pathfusion.fusion.spec import (
 )
 
 FUSION_FAMILIES = ("early_concat", "late", "intermediate")
+SINGLE_FAMILIES = ("single",)
 
 
 class SearchSpace:
-    def __init__(self, models: list[str] | tuple[str, ...]):
+    def __init__(self, models: list[str] | tuple[str, ...], mode: str = "fusion"):
         self.models = tuple(sorted(models))
-        if len(self.models) < 2:
+        if mode not in ("fusion", "single"):
+            raise ValueError("mode must be 'fusion' or 'single'")
+        self.mode = mode
+        self.families = FUSION_FAMILIES if mode == "fusion" else SINGLE_FAMILIES
+        if mode == "fusion" and len(self.models) < 2:
             raise ValueError("fusion needs at least two models")
 
     # --------------------------------------------------------------- fixed trial sets
@@ -41,6 +50,9 @@ class SearchSpace:
 
     def coverage_specs(self) -> list[FusionSpec]:
         allm = self.models
+        if self.mode == "single":  # same normalisation/PCA probes as fusion, per model
+            return [FusionSpec("single", (m,), norm=n, pca_dim=d)
+                    for m in allm for n, d in (("l2", None), ("zscore", 128))]
         return [
             FusionSpec("early_concat", allm, norm="none"),
             FusionSpec("early_concat", allm, norm="l2"),
@@ -55,14 +67,16 @@ class SearchSpace:
     # --------------------------------------------------------------- validation
     def validate(self, spec: FusionSpec) -> FusionSpec:
         spec.validate(available_models=self.models)
-        if spec.family not in FUSION_FAMILIES:
-            raise ValueError(f"agent proposals must be a fusion family {FUSION_FAMILIES}, got {spec.family!r}")
+        if spec.family not in self.families:
+            raise ValueError(f"{self.mode} search proposals must be one of {self.families}, got {spec.family!r}")
         if not spec.use_meta:
-            raise ValueError("use_meta is fixed to true for fusion trials")
+            raise ValueError("use_meta is fixed to true for agent trials")
         return spec.canonical()
 
     # --------------------------------------------------------------- local moves
     def model_subsets(self) -> list[tuple[str, ...]]:
+        if self.mode == "single":
+            return [(m,) for m in self.models]
         return [c for k in range(len(self.models), 1, -1) for c in combinations(self.models, k)]
 
     def neighbors(self, spec: FusionSpec) -> list[tuple[str, FusionSpec]]:
@@ -103,6 +117,16 @@ class SearchSpace:
 
     # --------------------------------------------------------------- LLM description
     def describe(self) -> str:
+        if self.mode == "single":
+            return (
+                "Config JSON fields:\n"
+                '  family: "single" (one foundation model + metadata)\n'
+                f"  models: list with exactly one of {list(self.models)}\n"
+                "  use_meta: true (fixed)\n"
+                f"  norm: one of {list(NORMS)}\n"
+                f"  pca_dim: one of {list(PCA_DIMS)}  (null = none)\n"
+                "A single attention-MIL over one model's tiles; tile features normalised / PCA-projected first."
+            )
         return (
             "Config JSON fields (all required except where noted):\n"
             f'  family: one of {list(FUSION_FAMILIES)}\n'

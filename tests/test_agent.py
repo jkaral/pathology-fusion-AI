@@ -175,3 +175,35 @@ def test_agent_end_to_end_on_synthetic(cfg, cohort, split, synthetic_dir, tmp_pa
     assert (tmp_path / "decisions.md").exists() and (tmp_path / "oof_probs.npz").exists()
     # synthetic features are built so each model sees different classes: fusion should help
     assert out.selected.result.mean > out.best_reference.result.mean
+
+
+def test_single_mode_space_and_proposals():
+    space = SearchSpace(MODELS, mode="single")
+    cov = space.coverage_specs()
+    assert all(s.family == "single" and len(s.models) == 1 for s in cov)
+    assert {s.models[0] for s in cov} == set(MODELS)
+    with pytest.raises(ValueError):
+        space.validate(FusionSpec("late", ("uni2h", "virchow2")))
+    st = AgentState(budget=20)
+    for s in space.reference_specs():
+        st.records.append(_fake_record(len(st.records), s, 0.7, "reference"))
+    for s in cov:
+        st.records.append(_fake_record(len(st.records), s, 0.71, "coverage"))
+    st.incumbent = st.records[-1]
+    p = DeterministicProposer(space).propose(st, 4)
+    assert p.spec is not None and p.spec.family == "single" and p.spec.key not in st.tried()
+
+
+def test_single_search_can_select_a_reference(cfg, cohort, split, synthetic_dir, tmp_path):
+    from pathfusion.embeddings.store import FeatureStore
+
+    dev = cohort[cohort["patient_id"].isin(split.loc[split["split"] != "test", "patient_id"])]
+    store = FeatureStore.from_dir(synthetic_dir, dev, cfg.extract.models, max_tiles=cfg.train.eval_tiles)
+    ctx = DataContext.build(dev, store, cfg.data.classes, cfg.train)
+    ev = CVEvaluator(ctx, load_cv_folds(cfg), "macro_auroc", seed=0)
+    space = SearchSpace(cfg.extract.models, mode="single")
+    acfg = replace(cfg.agent, budget=2, min_trials=1, patience=5, bootstrap_optimism=10)
+    out = AgentLoop(ev, space.reference_specs(), DeterministicProposer(space), acfg, tmp_path, 0,
+                    select_from_references=True).run()
+    assert out.state.trials_used == 2
+    assert out.selected.spec.family == "single"

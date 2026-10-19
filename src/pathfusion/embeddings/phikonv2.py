@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import torch
 
-from pathfusion.embeddings.base import Preprocess, TileEncoder
+from pathfusion.embeddings.base import Preprocess, TileEncoder, hf_processor_preprocess
 
 
 class PhikonV2(TileEncoder):
@@ -17,19 +17,9 @@ class PhikonV2(TileEncoder):
     embed_dim = 1024
 
     def _build(self) -> tuple[torch.nn.Module, Preprocess]:
-        from transformers import AutoImageProcessor, AutoModel
+        from transformers import AutoModel
 
-        processor = AutoImageProcessor.from_pretrained(self.hf_repo)
-        model = AutoModel.from_pretrained(self.hf_repo)
-        size = processor.crop_size if getattr(processor, "do_center_crop", False) else processor.size
-        side = int(size.get("height") or size.get("shortest_edge") or 224)
-        resample = getattr(processor, "resample", 3)
-        interp = {2: "bilinear", 3: "bicubic"}.get(int(resample), "bicubic")
-        pp = Preprocess(
-            input_size=side, mean=tuple(processor.image_mean),  # type: ignore[arg-type]
-            std=tuple(processor.image_std), interpolation=interp,  # type: ignore[arg-type]
-        )
-        return model, pp
+        return AutoModel.from_pretrained(self.hf_repo), hf_processor_preprocess(self.hf_repo)
 
     def _forward(self, x: torch.Tensor) -> torch.Tensor:
         assert self.model is not None

@@ -23,6 +23,7 @@ import json
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -50,7 +51,10 @@ class AgentOutcome:
 
 class AgentLoop:
     def __init__(self, evaluator: CVEvaluator, space_refs: list[FusionSpec], proposer: Proposer,
-                 cfg: AgentCfg, out_dir: Path, seed: int):
+                 cfg: AgentCfg, out_dir: Path, seed: int, select_from_references: bool = False):
+        """``select_from_references``: the reference trials are themselves candidates for the
+        final pick (the single-model equal-budget search); fusion search picks fusion only."""
+        self.select_from_references = select_from_references
         self.ev = evaluator
         self.refs = space_refs
         self.proposer = proposer
@@ -125,7 +129,7 @@ class AgentLoop:
 
         selected = self._one_se_selection()
         optimism = selection_optimism(
-            [r.result for r in st.fusion_records], self.ev.y_dev, self.ev.metric_name,
+            [r.result for r in self._candidates()], self.ev.y_dev, self.ev.metric_name,
             self.ev.ctx.n_classes, self.cfg.bootstrap_optimism, self.seed,
         )
         self._jsonl.close()
@@ -139,10 +143,13 @@ class AgentLoop:
                     fh.write(to_json_line(turn) + "\n")
         return outcome
 
+    def _candidates(self) -> list[TrialRecord]:
+        return self.state.records if self.select_from_references else self.state.fusion_records
+
     def _one_se_selection(self) -> TrialRecord:
-        fusion = self.state.fusion_records
+        fusion = self._candidates()
         if not fusion:
-            raise RuntimeError("no fusion trials were evaluated")
+            raise RuntimeError("no candidate trials were evaluated")
         best = max(fusion, key=lambda r: r.result.mean)
         thresh = best.result.mean - self._se_mean(best.result)
         cands = [r for r in fusion if r.result.mean >= thresh]
@@ -166,8 +173,9 @@ def write_reports(out: AgentOutcome, ev: CVEvaluator, se_mean) -> None:  # type:
         "proposer": out.proposer_name,
     }
     dump_json(summary, d / "selected.json")
-    np.savez_compressed(d / "oof_probs.npz", dev_ids=np.array(ev.dev_ids), y=ev.y_dev,
-                        **{f"trial_{r.index}": r.result.oof_probs for r in st.records})
+    arrays: dict[str, Any] = {"dev_ids": np.array(ev.dev_ids), "y": ev.y_dev}
+    arrays.update({f"trial_{r.index}": r.result.oof_probs for r in st.records})
+    np.savez_compressed(d / "oof_probs.npz", **arrays)
     lines = [
         "# Agent decision log", "",
         f"- Selection metric: **{ev.metric_name}**, stratified {len(ev.splits)}-fold CV on "

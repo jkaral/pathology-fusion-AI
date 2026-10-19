@@ -160,11 +160,78 @@ print("Download /kaggle/working/results_bundle.tgz from the Output tab")
     ])
 
 
+COLAB_SETUP = f'''
+# Colab: features and results live on Google Drive so they survive the runtime.
+from google.colab import drive, userdata
+drive.mount("/content/drive")
+import os, subprocess
+WORK = "/content/drive/MyDrive/pathfusion"
+os.makedirs(WORK, exist_ok=True)
+REPO_DIR = "/content/pathology-fusion-AI"
+if not os.path.exists(REPO_DIR):
+    subprocess.run(["git", "clone", "--depth", "1", "-b", "{BRANCH}", "{REPO}", REPO_DIR], check=True)
+os.chdir(REPO_DIR)
+!pip install -q -r requirements-kaggle.txt
+for name in ("HF_TOKEN", "WANDB_API_KEY"):   # Colab: key icon in the left sidebar -> add secret
+    try:
+        os.environ[name] = userdata.get(name); print(name, "loaded")
+    except Exception:
+        print(name, "not set")
+import torch; print("GPU:", torch.cuda.get_device_name(0) if torch.cuda.is_available() else None)
+'''
+
+
+def colab_extraction_notebook() -> dict:
+    return notebook([
+        md("""
+# Stage 1 on Colab - tile + embed (UNI2-h, Virchow2, Phikon-v2)
+
+Runtime -> Change runtime type -> **T4 GPU**. Add secrets `HF_TOKEN` (and `WANDB_API_KEY`)
+in the key panel. Free Colab sessions can disconnect: just re-run all cells, finished
+slides are skipped (features are written to Drive as they complete).
+"""),
+        code(COLAB_SETUP),
+        code('''
+os.environ["PATHFUSION_JPG_CACHE"] = "/content/jpg"      # local disk; JPEGs deleted after decoding
+OUT = f"{WORK}/embeddings"
+!python scripts/01_extract_embeddings.py --limit 2 --out-dir {OUT} paths.qc_dir={WORK}/qc
+'''),
+        code('''
+!python scripts/01_extract_embeddings.py --out-dir {OUT} paths.qc_dir={WORK}/qc
+!python scripts/01_extract_embeddings.py --summarize --out-dir {OUT}
+'''),
+    ])
+
+
+def colab_agent_eval_notebook() -> dict:
+    return notebook([
+        md("""
+# Stages 2 + 3 on Colab - agent search, then the one-time test evaluation
+
+Single T4 (15 GB): the search policy uses **Qwen2.5-3B-Instruct** in fp16 (the 7B model
+needs the two T4s Kaggle provides). Everything else is identical to the Kaggle notebook.
+"""),
+        code(COLAB_SETUP),
+        code('''
+EMB = f"{WORK}/embeddings"
+OVR = f"paths.agent_dir={WORK}/agent paths.results_dir={WORK}/results agent.llm.local_model=Qwen/Qwen2.5-3B-Instruct"
+!python scripts/02_run_agent.py --embeddings-dir {EMB} {OVR}
+'''),
+        code('''
+!python scripts/03_final_evaluation.py --embeddings-dir {EMB} {OVR}
+!python scripts/04_report_facts.py --embeddings-dir {EMB} {OVR}
+'''),
+    ])
+
+
 def main() -> None:
     out = ROOT / "notebooks"
     out.mkdir(exist_ok=True)
     (out / "kaggle_01_extract_embeddings.ipynb").write_text(json.dumps(extraction_notebook(), indent=1) + "\n")
     (out / "kaggle_02_agent_and_evaluation.ipynb").write_text(json.dumps(agent_eval_notebook(), indent=1) + "\n")
+    (out / "colab_01_extract_embeddings.ipynb").write_text(json.dumps(colab_extraction_notebook(), indent=1) + "\n")
+    (out / "colab_02_agent_and_evaluation.ipynb").write_text(
+        json.dumps(colab_agent_eval_notebook(), indent=1) + "\n")
     print("wrote", sorted(p.name for p in out.glob("*.ipynb")))
 
 

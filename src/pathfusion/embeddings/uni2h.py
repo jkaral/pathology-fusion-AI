@@ -8,6 +8,8 @@ model card's transform (ImageNet mean/std, 224 px) rather than timm's architectu
 
 from __future__ import annotations
 
+from typing import Any
+
 import torch
 
 from pathfusion.embeddings.base import Preprocess, TileEncoder, timm_preprocess
@@ -26,7 +28,7 @@ class UNI2h(TileEncoder):
     def _build(self) -> tuple[torch.nn.Module, Preprocess]:
         import timm
 
-        kwargs = {
+        kwargs: dict[str, Any] = {
             "img_size": 224, "patch_size": 14, "depth": 24, "num_heads": 24,
             "init_values": 1e-5, "embed_dim": 1536, "mlp_ratio": 2.66667 * 2,
             "num_classes": 0, "no_embed_class": True,

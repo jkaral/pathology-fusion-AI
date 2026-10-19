@@ -64,10 +64,14 @@ class TileEncoder(ABC):
 
     @torch.inference_mode()
     def encode(self, tiles_uint8: torch.Tensor) -> torch.Tensor:
+        """Mixed precision: fp16 on CUDA; bf16 on CPUs with native bf16 (AMX/AVX512-BF16)."""
         assert self.model is not None and self.preprocess is not None, "call load() first"
         x = self.preprocess(tiles_uint8.to(self.device, non_blocking=True))
-        use_amp = self.device.type == "cuda"
-        with torch.autocast(device_type=self.device.type, dtype=torch.float16, enabled=use_amp):
+        if self.device.type == "cuda":
+            amp_dtype, use_amp = torch.float16, True
+        else:
+            amp_dtype, use_amp = torch.bfloat16, cpu_has_native_bf16()
+        with torch.autocast(device_type=self.device.type, dtype=amp_dtype, enabled=use_amp):
             out = self._forward(x)
         if out.shape[-1] != self.embed_dim:
             raise RuntimeError(f"{self.name}: expected dim {self.embed_dim}, got {out.shape[-1]}")
@@ -80,6 +84,26 @@ class TileEncoder(ABC):
             "input_size": pp.input_size if pp else None, "mean": pp.mean if pp else None,
             "std": pp.std if pp else None, "interpolation": pp.interpolation if pp else None,
         }
+
+
+def cpu_has_native_bf16() -> bool:
+    """True on CPUs with AMX/AVX512-BF16, where bf16 autocast is ~3x faster than fp32."""
+    try:
+        flags = open("/proc/cpuinfo").read()
+    except OSError:
+        return False
+    return "amx_bf16" in flags or "avx512_bf16" in flags
+
+
+def hf_processor_preprocess(repo: str) -> Preprocess:
+    """Read size/mean/std/resampling from a model's own Hugging Face image processor."""
+    from transformers import AutoImageProcessor
+
+    proc = AutoImageProcessor.from_pretrained(repo)
+    size = proc.crop_size if getattr(proc, "do_center_crop", False) else proc.size
+    side = int(size.get("height") or size.get("shortest_edge") or 224)
+    interp = {2: "bilinear", 3: "bicubic"}.get(int(getattr(proc, "resample", 3)), "bicubic")
+    return Preprocess(side, tuple(proc.image_mean), tuple(proc.image_std), interp)  # type: ignore[arg-type]
 
 
 def timm_preprocess(model: torch.nn.Module) -> Preprocess:

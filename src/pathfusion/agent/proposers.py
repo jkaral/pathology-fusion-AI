@@ -21,7 +21,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 from pathfusion.agent.llm import ChatLLM, extract_json
-from pathfusion.agent.space import FUSION_FAMILIES, SearchSpace
+from pathfusion.agent.space import SearchSpace
 from pathfusion.agent.state import AgentState, TrialRecord
 from pathfusion.fusion.spec import FusionSpec
 from pathfusion.utils.logging import get_logger
@@ -70,7 +70,7 @@ class DeterministicProposer(Proposer):
         anchors = ([state.incumbent] if state.incumbent and state.incumbent.phase != "reference" else []) + ranked
         seen: set[str] = set()
         for anchor in anchors:
-            if anchor.spec.key in seen or anchor.spec.family not in FUSION_FAMILIES:
+            if anchor.spec.key in seen or anchor.spec.family not in self.space.families:
                 continue
             seen.add(anchor.spec.key)
             for label, nb in self.space.neighbors(anchor.spec):
@@ -83,8 +83,8 @@ class DeterministicProposer(Proposer):
                         stop=True)
 
 
-SYSTEM_PROMPT = """You are the search policy of an AutoML agent choosing how to fuse three pathology \
-foundation models (plus age and sex) for 7-class lung adenocarcinoma growth-pattern classification.
+SYSTEM_PROMPT = """You are the search policy of an AutoML agent choosing {task} \
+for 7-class lung adenocarcinoma growth-pattern classification.
 Each trial is scored by stratified {k}-fold cross-validation on {n_dev} development patients ({metric}). \
 With ~{per_fold} patients per fold the noise is large: a difference smaller than its standard error is NOT evidence. \
 A new incumbent is accepted only if its fold-paired gain exceeds acceptance_z x corrected SE.
@@ -100,7 +100,9 @@ class LLMProposer(Proposer):
     def __init__(self, space: SearchSpace, llm: ChatLLM, acceptance_z: float, max_retries: int = 1,
                  n_dev: int = 162, n_folds: int = 5, metric: str = "macro_auroc"):
         super().__init__(space)
-        self.system = SYSTEM_PROMPT.format(k=n_folds, n_dev=n_dev, metric=metric,
+        task = ("how to fuse pathology foundation models (plus age and sex)" if space.mode == "fusion"
+                else "the best single pathology foundation model configuration (plus age and sex)")
+        self.system = SYSTEM_PROMPT.format(task=task, k=n_folds, n_dev=n_dev, metric=metric,
                                            per_fold=round(n_dev / n_folds))
         self.llm = llm
         self.acceptance_z = acceptance_z

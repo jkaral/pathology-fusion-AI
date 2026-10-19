@@ -29,3 +29,8 @@ ignore = ["B905", "E741"]
 [tool.ruff.lint.per-file-ignores]
 "scripts/*" = ["E402"]
 "tests/*" = ["E402"]
+
+[tool.mypy]
+python_version = "3.13"
+ignore_missing_imports = true
+files = ["src/pathfusion"]

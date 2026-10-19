@@ -55,6 +55,12 @@ def main() -> None:
                     "results/results.md", "results/TEST_LOCK.json", "results/figures/curves.png",
                     "results/figures/confusion_fused.png", "results/figures/forest_macro_auroc.png",
                     "results/report_facts.md", "results/error_analysis.csv"]
+        expected += ["agent/smoke/single_search/decisions.md"]
+        import json as _json
+
+        sel = _json.loads((tmp / "agent/smoke/selected.json").read_text())
+        assert "best_single_tuned" in sel and sel["single_search_trials"] == sel["fusion_trials"], sel.keys()
+        print("equal-budget single search:", sel["best_single_tuned_short"], "trials", sel["single_search_trials"])
         missing = [e for e in expected if not (tmp / e).exists()]
         assert not missing, f"missing outputs: {missing}"
         print(f"SMOKE OK: all {len(expected)} expected outputs present in {tmp}")

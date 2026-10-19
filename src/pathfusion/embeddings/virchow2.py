@@ -28,7 +28,7 @@ class Virchow2(TileEncoder):
 
     def _forward(self, x: torch.Tensor) -> torch.Tensor:
         assert self.model is not None
-        tokens = self.model.forward_features(x)          # (B, 1 + 4 + 256, 1280)
+        tokens = self.model.forward_features(x)  # type: ignore[operator]          # (B, 1 + 4 + 256, 1280)
         n_prefix = int(getattr(self.model, "num_prefix_tokens", 5))
         cls_tok = tokens[:, 0]
         patch_mean = tokens[:, n_prefix:].mean(dim=1)

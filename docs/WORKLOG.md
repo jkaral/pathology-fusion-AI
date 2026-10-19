@@ -131,3 +131,47 @@ Newest entries at the bottom. Each checkpoint corresponds to a commit on
   yet, and none have been made up. The only numbers produced so far come from synthetic
   smoke runs, which were never committed as results.
 - **Blocked:** `git push` returns 403 until the Claude GitHub App is installed on the repo.
+
+## Checkpoint 5: real data reachable; analyses; rigour and engineering upgrades
+
+The environment's network policy now allows the Hugging Face CDN (90 MB/s), so work moved
+onto **real slides**. Git push and the GitHub API both still return 403.
+
+**Real-slide findings**
+- The slides are baseline JPEGs up to 65,000 px per side (≤ 16,250 px at 20x). Decoding at 20x
+  takes ~22 s and 1.4 GB RAM per slide. The tissue mask was checked visually on real slides
+  (`scripts/06_tiling_qc_report.py` makes contact sheets).
+- About 1,500 tissue tiles per slide at 20x (range 335-2,563 in the first 26 slides). The
+  4096 cap therefore never binds, and the headline run uses *every* tissue tile.
+- **Shortcut risk:** a classifier given only the slide ID number reaches development-CV macro
+  AUROC **0.78** (age + sex: 0.59). IDs are grouped by subtype (WSI-1…~60 almost all In
+  situ). If scanning/staining batches follow ID order, image features could encode batch.
+  The pilot now saves lossless tissue thumbnails so this can be tested
+  (stain statistics vs ID, within class).
+
+**Analyses (no test data used):** `scripts/05_metadata_and_uncertainty.py` →
+`artifacts/analysis/`
+- Age differs by subtype (Kruskal-Wallis p = 1.5e-7; In situ median 48 vs 57), and so does
+  sex (χ² p = 0.003). Even so, age + sex alone reach only CV macro AUROC 0.588 ± 0.086,
+  balanced accuracy 0.26.
+- One test patient moves balanced accuracy by 1.6-4.8 points. The simulated minimum
+  detectable paired difference on 41 patients is ~0.06-0.12 AUROC, which is why the claim
+  rests on development CV + paired bootstrap.
+
+**Rigour:** an *equal-budget single-model search* (`SearchSpace(mode="single")`). The best-
+single row gets the same agent, the same number of trials and the same one-SE rule over
+its own knobs (model, normalisation, PCA), so a fusion gain can't be explained by extra
+tuning. Stage 3 uses the tuned single spec.
+
+**Encoders:** added ungated Phikon (ViT-B) and Lunit-DINO (ViT-S) for the pilot. Lunit's
+hub port reports mean/std 0.5, but the official Lunit statistics are pinned. CPU bf16 (AMX)
+encoding runs 3x faster than fp32 (cosine ≥ 0.99999). Extraction now decodes the next slide
+while the current one is being encoded.
+
+**Engineering**
+- `conf/pilot.yaml`, layered on the default config (`PATHFUSION_CONFIG`)
+- Colab notebook variants
+- GitHub Actions CI (lint, mypy, reproducible split check, tests, smoke)
+- mypy clean (45 files), ruff clean
+- `docs/REPORT_OUTLINE.md` (headings → evidence only)
+- 58 tests pass

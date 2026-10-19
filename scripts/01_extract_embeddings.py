@@ -66,6 +66,8 @@ def main() -> None:
     ap.add_argument("--out-dir", type=Path, default=None, help="defaults to paths.embeddings_dir")
     ap.add_argument("--no-qc", action="store_true", help="skip QC overlay images")
     ap.add_argument("--summarize", action="store_true")
+    ap.add_argument("--thumbnails-only", action="store_true",
+                    help="only (re)write QC overlays + tissue thumbnails for slides missing them; no encoders")
     ap.add_argument("overrides", nargs="*")
     args = ap.parse_args()
     cfg = load_config(overrides=args.overrides)
@@ -87,7 +89,29 @@ def main() -> None:
         slides = slides[: args.limit]
     sizes = dict(zip(cohort["WSI_ID"], cohort["size_bytes"]))
 
+    import os
+
+    import torch
+
     from pathfusion.embeddings.registry import get_encoder
+
+    if not torch.cuda.is_available():  # CPU run: leave one core for the decode-ahead thread
+        torch.set_num_threads(max(1, (os.cpu_count() or 2) - 1))
+
+    if args.thumbnails_only:
+        from pathfusion.embeddings.extract import prepare_slide
+
+        qc = cfg.paths.resolve("qc_dir")
+        todo = [s for s in slides if not (qc / "thumbs" / f"{s}.png").exists()]
+        log.info("thumbnails to backfill: %d", len(todo))
+        src = hf_source(cfg.data.hf_repo, default_cache_dir(), cfg.extract.prefetch, cfg.extract.keep_jpg)
+        for sid, path, t_dl in src.iterate(todo):
+            try:
+                prepare_slide(sid, path, cfg, qc, t_dl)
+            finally:
+                src.release(path)
+            log.info("thumbnail %s done", sid)
+        return
 
     encoders = [get_encoder(m) for m in models]
     for enc, dev in zip(encoders, assign_devices(encoders)):

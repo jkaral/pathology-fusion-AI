@@ -143,7 +143,7 @@ def train_mil(
             sched.step()
             total += loss.item() * len(b)
             count += len(b)
-        rec: dict[str, float] = {"epoch": epoch + 1, "train/loss": total / count, "lr": sched.get_last_lr()[0]}
+        rec: dict[str, float] = {"epoch": epoch + 1, "train/loss": total / count, "lr": float(sched.get_last_lr()[0])}
         if log_train_metrics:
             p = predict(model, ctx, inputs, train_ids, cov_train)
             m = compute_metrics(y_train, p, ctx.n_classes)
