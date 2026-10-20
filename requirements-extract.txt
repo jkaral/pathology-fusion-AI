@@ -1,6 +1,7 @@
 # Stage 1 (feature extraction) extras on top of requirements.txt.
 -r requirements.txt
 timm==1.0.24
+torchvision==0.29.1  # must match torch 2.14.1 (timm imports it)
 transformers==5.16.1
 huggingface_hub==1.18.0
 pyvips[binary]==3.0.0
