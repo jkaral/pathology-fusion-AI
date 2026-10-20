@@ -228,3 +228,31 @@ def test_evaluator_disk_cache_resumes(ctx, cfg, tmp_path):
     user = "Trials ... acceptance_z"
     assert llm.chat("sys", user) == "reply-1"
     assert CachedChat(ScriptedLLM([]), tmp_path).chat("sys", user) == "reply-1"  # replayed, no call
+
+
+def test_one_se_rule_uses_paired_scale(tmp_path):
+    """A simpler config that is consistently worse on every fold must not be picked just
+    because fold difficulty makes each mean's own SE large (the pilot's real failure)."""
+    from pathfusion.agent.evaluator import CVEvaluator as _CV
+
+    folds = np.array([0.82, 0.88, 0.82, 0.91, 0.87])          # shared fold difficulty
+    best = FusionSpec("early_concat", ("phikon", "uni2h", "virchow2"))
+    worse_simple = FusionSpec("late", ("phikon", "uni2h", "virchow2"), late_rule="prob_mean")
+    tie_simple = FusionSpec("late", ("phikon", "uni2h", "virchow2"), late_rule="logit_mean")
+
+    def rec(i, spec, scores):
+        return TrialRecord(i, "coverage", "fixed", "", TrialResult(spec, scores, np.zeros((5, 7)),
+                                                                   {"macro_auroc": 0, "balanced_accuracy": 0}, 0))
+
+    ev = _CV.__new__(_CV)          # paired() only needs nb_ratio
+    ev.nb_ratio = 32 / 130
+    loop = AgentLoop.__new__(AgentLoop)
+    loop.ev, loop.select_from_references = ev, False
+    loop.state = AgentState(budget=10)
+    worse_scores = folds - 0.022 + np.array([0, .004, -.004, .002, -.002])
+    tie_scores = folds - 0.001 + np.array([0, .01, -.01, .005, -.005])
+    loop.state.records = [rec(0, best, folds), rec(1, worse_simple, worse_scores), rec(2, tie_simple, tie_scores)]
+    pick = loop._one_se_selection()
+    assert pick.spec == tie_simple.canonical()           # within paired noise and simpler
+    loop.state.records = loop.state.records[:2]
+    assert loop._one_se_selection().spec == best.canonical()  # consistently worse -> excluded

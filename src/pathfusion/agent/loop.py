@@ -9,8 +9,9 @@ Guardrails against validation overfitting (the brief's failure mode):
    over the incumbent exceeds ``acceptance_z`` x Nadeau-Bengio-corrected SE.
 4. **Stopping**: budget exhausted, ``patience`` adaptive trials without an accepted improvement,
    the proposer has nothing left, or the LLM asks to stop (only after ``min_trials``).
-5. **Final pick by the one-standard-error rule**: among fusion trials within one SE of
-   the best CV mean, take the least complex; ranking noise is not rewarded.
+5. **Final pick by the one-standard-error rule** on the fold-paired scale: among fusion
+   trials whose paired gap to the best is within one corrected paired SE, take the least
+   complex; ranking noise is not rewarded.
 6. **Selection-noise estimate**: bootstrap winner's-curse optimism of the best CV score.
 
 Every step is appended to ``decisions.jsonl`` as it happens; ``decisions.md`` renders
@@ -151,8 +152,12 @@ class AgentLoop:
         if not fusion:
             raise RuntimeError("no candidate trials were evaluated")
         best = max(fusion, key=lambda r: r.result.mean)
-        thresh = best.result.mean - self._se_mean(best.result)
-        cands = [r for r in fusion if r.result.mean >= thresh]
+        # One-SE rule on the *fold-paired* scale: every trial runs on the same folds, so the
+        # noise that matters for "is this simpler config as good?" is the corrected SE of the
+        # paired difference to the best trial, not the SE of either mean (which is dominated
+        # by fold difficulty shared by all configs and lets clearly worse configs through).
+        cands = [r for r in fusion
+                 if r is best or best.result.mean - r.result.mean <= self.ev.paired(best.result, r.result).se]
         return min(cands, key=lambda r: (r.spec.complexity(), -r.result.mean))
 
 
@@ -183,7 +188,7 @@ def write_reports(out: AgentOutcome, ev: CVEvaluator, se_mean) -> None:  # type:
         f"- Budget: {st.budget} fusion trials (+{len([r for r in st.records if r.phase == 'reference'])} "
         f"references); used {st.trials_used}. Stop reason: {out.stop_reason}.",
         "- Acceptance: paired fold gain > z x Nadeau-Bengio corrected SE. "
-        "Final pick: one-SE rule (least complex fusion trial within 1 SE of the best).",
+        "Final pick: one-SE rule on the fold-paired scale (least complex trial within 1 paired SE of the best).",
         f"- Best single model + metadata: **{ref.spec.short()}** (CV {ref.result.mean:.3f}).",
         f"- **Selected**: #{sel.index} **{sel.spec.short()}** (CV {sel.result.mean:.3f} ± "
         f"{se_mean(sel.result):.3f}); gain vs best single {gain.mean:+.3f} ± {gain.se:.3f} (corrected SE).",
