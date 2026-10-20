@@ -1,0 +1,102 @@
+# Single source of truth for every stage. Override any key from the CLI with
+# dotted syntax, e.g.:  python scripts/02_run_agent.py agent.budget=16 seed=1
+seed: 0
+
+paths:
+  metadata_csv: data/CLWD.csv            # the brief's metadata (labels used)
+  metadata_hf_csv: data/CLWD_hf.csv      # richer HF release (Multi_Subtypes, used for analysis only)
+  hf_manifest_csv: data/hf_file_manifest.csv
+  artifacts: artifacts
+  cohort_csv: artifacts/data/cohort.csv
+  split_csv: artifacts/splits/split_v1.csv
+  cv_folds_csv: artifacts/splits/cv_folds_v1.csv
+  embeddings_dir: artifacts/embeddings   # gitignored; one .h5 per slide holding all three models
+  qc_dir: artifacts/qc
+  agent_dir: artifacts/agent
+  results_dir: artifacts/results
+
+data:
+  hf_repo: kmmuleelab/Lung_Pathology_Image_JPG
+  label_column: Tumor Subtype
+  classes: [In situ, Lepidic, Acinar, Papillary, Micropapillary, Solid, Cribriform]
+  # Quirk 1: SampleNumber 8377886 appears with Age 68 and 69. "merge" = one patient
+  # (leakage-safe: both specimens land in the same split). "split" = two pseudo-patients.
+  duplicate_id_policy: merge
+  # Quirk 2: per-slide labels conflict within 5 patients. With one slide per patient,
+  # "selected_slide" uses the label of the slide that is actually imaged.
+  # Alternatives: "exclude" (drop those patients), "majority" (most frequent; ties -> selected slide).
+  conflict_policy: selected_slide
+  # Slide selection: lowest numeric WSI_ID among slides that exist in the HF release.
+  slide_selection: lowest_available_wsi_id
+
+split:
+  version: v1
+  fractions: {train: 0.70, val: 0.10, test: 0.20}
+  seed: 2026
+  cv_folds: 5        # stratified K-fold over train+val, used by the agent for selection
+  cv_repeats: 1
+
+tiling:
+  native_magnification: 80
+  target_magnification: 20     # 4x linear downsample, applied at JPEG decode time
+  tile_size: 224               # pixels at 20x (~112 um at 0.5 mpp)
+  stride: 224                  # non-overlapping
+  thumbnail_downsample: 16     # mask computed at 20x/16 = 1.25x
+  min_tissue_fraction: 0.5
+  saturation_floor: 0.05       # Otsu threshold is clipped below by this (blank slides)
+  max_tiles: 4096              # seeded random cap per slide (null = keep all)
+  stain_normalization: none    # none | macenko (per-slide fit on the thumbnail; see data/stain.py)
+
+extract:
+  models: [uni2h, virchow2, phikonv2]
+  batch_size: 128
+  num_workers: 4
+  dtype: float16
+  prefetch: 1                  # slides downloaded ahead of the one being processed
+  shard_index: 0
+  num_shards: 1
+  keep_jpg: false
+
+train:              # shared MIL recipe: identical for every row of the results table
+  hidden_dim: 256
+  attn_dim: 128
+  dropout: 0.25
+  meta_dim: 16
+  lr: 2.0e-4
+  weight_decay: 1.0e-2
+  epochs: 30
+  batch_size: 16
+  train_tiles: 512             # tiles sampled per bag per step (augmentation + speed)
+  eval_tiles: 4096
+  class_weighting: true
+  warmup_epochs: 2
+  device: auto
+
+agent:
+  budget: 24                   # max proposed trials (references excluded)
+  min_trials: 8                # LLM may not stop before this many
+  patience: 8                  # stop after this many trials without an accepted improvement
+  acceptance_z: 1.0            # accept a new incumbent only if paired gain > z * SE
+  selection_metric: macro_auroc
+  bootstrap_optimism: 200
+  proposer: auto               # auto | deterministic | local_llm | openai_compatible
+  # control: give the best-single-model row the same agent, budget and selection rule
+  equal_budget_single_search: true
+  llm:
+    local_model: Qwen/Qwen2.5-7B-Instruct
+    max_new_tokens: 400
+    temperature: 0.0
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai/
+    model: gemini-2.5-flash
+    api_key_env: GEMINI_API_KEY
+    max_retries: 1
+
+eval:
+  seeds: [0, 1, 2, 3, 4]
+  n_bootstrap: 2000
+  ci: 0.95
+
+tracking:
+  wandb_project: pathology-fusion
+  wandb_entity: null
+  mode: auto                   # auto (online if WANDB_API_KEY set, else disabled) | online | offline | disabled

@@ -1,0 +1,16 @@
+{
+  "slides": 203,
+  "tiles_total": 51843,
+  "tiles_per_slide_median": 256.0,
+  "slides_capped": 202,
+  "download_hours": 0.71,
+  "decode_hours": 0.97,
+  "tiling_hours": 0.06,
+  "phikonv2_gpu_hours": 2.53,
+  "phikonv2_tiles_per_s": 5.7,
+  "phikon_gpu_hours": 0.74,
+  "phikon_tiles_per_s": 19.4,
+  "lunit_dino_gpu_hours": 0.22,
+  "lunit_dino_tiles_per_s": 65.7,
+  "feature_cache_gb": 0.23
+}

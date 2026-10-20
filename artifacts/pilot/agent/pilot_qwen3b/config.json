@@ -1,0 +1,123 @@
+{
+  "config": {
+    "seed": 0,
+    "paths": {
+      "metadata_csv": "data/CLWD.csv",
+      "metadata_hf_csv": "data/CLWD_hf.csv",
+      "hf_manifest_csv": "data/hf_file_manifest.csv",
+      "artifacts": "artifacts",
+      "cohort_csv": "artifacts/data/cohort.csv",
+      "split_csv": "artifacts/splits/split_v1.csv",
+      "cv_folds_csv": "artifacts/splits/cv_folds_v1.csv",
+      "embeddings_dir": "artifacts/embeddings_pilot",
+      "qc_dir": "artifacts/qc",
+      "agent_dir": "artifacts/pilot/agent",
+      "results_dir": "artifacts/pilot/results"
+    },
+    "data": {
+      "hf_repo": "kmmuleelab/Lung_Pathology_Image_JPG",
+      "label_column": "Tumor Subtype",
+      "classes": [
+        "In situ",
+        "Lepidic",
+        "Acinar",
+        "Papillary",
+        "Micropapillary",
+        "Solid",
+        "Cribriform"
+      ],
+      "duplicate_id_policy": "merge",
+      "conflict_policy": "selected_slide",
+      "slide_selection": "lowest_available_wsi_id"
+    },
+    "split": {
+      "version": "v1",
+      "fractions": {
+        "train": 0.7,
+        "val": 0.1,
+        "test": 0.2
+      },
+      "seed": 2026,
+      "cv_folds": 5,
+      "cv_repeats": 1
+    },
+    "tiling": {
+      "native_magnification": 80,
+      "target_magnification": 20,
+      "tile_size": 224,
+      "stride": 224,
+      "thumbnail_downsample": 16,
+      "min_tissue_fraction": 0.5,
+      "saturation_floor": 0.05,
+      "max_tiles": 256,
+      "stain_normalization": "none"
+    },
+    "extract": {
+      "models": [
+        "phikonv2",
+        "phikon",
+        "lunit_dino"
+      ],
+      "batch_size": 64,
+      "num_workers": 4,
+      "dtype": "float16",
+      "prefetch": 1,
+      "shard_index": 0,
+      "num_shards": 1,
+      "keep_jpg": false
+    },
+    "train": {
+      "hidden_dim": 256,
+      "attn_dim": 128,
+      "dropout": 0.25,
+      "meta_dim": 16,
+      "lr": 0.0002,
+      "weight_decay": 0.01,
+      "epochs": 30,
+      "batch_size": 16,
+      "train_tiles": 128,
+      "eval_tiles": 256,
+      "class_weighting": true,
+      "warmup_epochs": 2,
+      "device": "cpu"
+    },
+    "agent": {
+      "budget": 24,
+      "min_trials": 8,
+      "patience": 8,
+      "acceptance_z": 1.0,
+      "selection_metric": "macro_auroc",
+      "bootstrap_optimism": 200,
+      "proposer": "local_llm",
+      "equal_budget_single_search": true,
+      "llm": {
+        "local_model": "Qwen/Qwen2.5-3B-Instruct",
+        "max_new_tokens": 400,
+        "temperature": 0.0,
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "model": "gemini-2.5-flash",
+        "api_key_env": "GEMINI_API_KEY",
+        "max_retries": 1
+      }
+    },
+    "eval": {
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "n_bootstrap": 2000,
+      "ci": 0.95
+    },
+    "tracking": {
+      "wandb_project": "pathology-fusion",
+      "wandb_entity": null,
+      "mode": "auto"
+    }
+  },
+  "git_commit": "d8cc9385755849ba4a2025de9df424ddcfc35b69-dirty",
+  "embeddings_dir": "/home/user/pathology-fusion-AI/artifacts/embeddings_pilot",
+  "device": "cpu"
+}
