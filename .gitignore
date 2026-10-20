@@ -23,3 +23,5 @@ wandb/
 # OS
 .DS_Store
 artifacts/qc/*.jpg
+artifacts/qc/thumbs/
+artifacts/qc/thumbs_macenko/
