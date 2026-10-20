@@ -175,3 +175,18 @@ while the current one is being encoded.
 - mypy clean (45 files), ruff clean
 - `docs/REPORT_OUTLINE.md` (headings → evidence only)
 - 58 tests pass
+
+## Checkpoint 6: pilot extraction underway; preliminary shortcut probe
+
+- Pilot extraction (3 ungated encoders, all 203 real slides, CPU bf16) is resumable and has
+  survived one manual restart and one container restart. 128/203 slides were done at this checkpoint.
+- **Preliminary batch/shortcut probe** (82 development slides with thumbnails,
+  `artifacts/pilot/batch_probe_preliminary_82/`):
+  - Stain colour vs slide-ID order within subtype: no association (|ρ| ≤ 0.18, all p > 0.1).
+  - Colour alone → subtype: AUROC 0.47 (chance).
+  - FM features → within-subtype ID position: CV R² < 0 for all three encoders
+    (permutation p 0.33-0.85).
+
+  So far the ID → label correlation (AUROC 0.78) reflects how IDs were *assigned*, not a
+  batch signature in the images. The probe is re-run on all slides at the end of the pilot.
+- Lesson recorded: block on long CPU jobs via completion notifications, not polling loops.
