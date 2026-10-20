@@ -124,7 +124,11 @@ class CVEvaluator:
         var = np.var(d, ddof=1) if k > 1 else 0.0
         se = float(np.sqrt((1.0 / k + self.nb_ratio) * var))
         mean = float(d.mean())
-        return PairedDiff(mean, se, mean / se if se > 0 else float("inf") * np.sign(mean))
+        if se > 0:
+            t = mean / se
+        else:  # identical fold scores: no evidence either way (avoids 0 * inf = nan)
+            t = 0.0 if mean == 0 else float(np.copysign(np.inf, mean))
+        return PairedDiff(mean, se, t)
 
 
 def selection_optimism(

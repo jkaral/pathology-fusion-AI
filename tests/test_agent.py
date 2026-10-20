@@ -256,3 +256,13 @@ def test_one_se_rule_uses_paired_scale(tmp_path):
     assert pick.spec == tie_simple.canonical()           # within paired noise and simpler
     loop.state.records = loop.state.records[:2]
     assert loop._one_se_selection().spec == best.canonical()  # consistently worse -> excluded
+
+
+def test_paired_diff_identical_scores_is_zero_not_nan():
+    from pathfusion.agent.evaluator import CVEvaluator as _CV
+
+    ev = _CV.__new__(_CV)
+    ev.nb_ratio = 0.25
+    r = TrialResult(FusionSpec("meta_only"), np.array([0.8, 0.9, 0.7]), np.zeros((3, 7)), {}, 0)
+    d = ev.paired(r, r)
+    assert d.mean == 0 and d.se == 0 and d.t == 0

@@ -190,3 +190,25 @@ while the current one is being encoded.
   So far the ID → label correlation (AUROC 0.78) reflects how IDs were *assigned*, not a
   batch signature in the images. The probe is re-run on all slides at the end of the pilot.
 - Lesson recorded: block on long CPU jobs via completion notifications, not polling loops.
+
+## Checkpoint 7: pilot complete; selection-rule fix; shortcut analysis resolved
+
+- Pilot agent finished on real features (`artifacts/pilot/PILOT_RESULTS.md`):
+  - Selected raw early concatenation of Phikon-v2 + Phikon + Lunit-DINO + metadata, dev-CV macro AUROC **0.869**.
+  - Best single (Phikon + metadata): 0.848. The equal-budget single search (14 trials) kept it.
+  - **Fused − tuned single = +0.021 ± 0.008** (paired, corrected).
+  - Winner's-curse optimism: 0.010.
+- **Bug found on real data, fixed:** the one-SE final pick used the marginal SE, so it chose a
+  fusion no better than the best single model. It now uses the fold-paired corrected SE
+  (`d8cc938`, with a regression test). The run was replayed from cache: identical trajectory,
+  corrected pick. This was decided after seeing development-CV results; the test set was untouched.
+- Edge case fixed: the paired t-statistic with zero SE produced NaN (RuntimeWarning); it is now tested.
+- **Correction to checkpoint 6:** on all 162 development slides, image features *do* encode
+  within-subtype slide-ID order (R² ≈ 0.25, p = 0.005), and JPEG size tracks it
+  (ρ = 0.27, p = 0.0007). The 82-slide preliminary probe was misleading.
+  New `scripts/08_within_batch_eval.py` scores models within slide-ID blocks:
+  - the ID-only classifier falls to chance (0.56);
+  - the image models keep 0.81-0.86, and the fusion is highest (0.858).
+
+  So the acquisition signature exists but does not drive subtype discrimination.
+- The extraction summary is regenerated with the pilot config (it previously listed only Phikon-v2).

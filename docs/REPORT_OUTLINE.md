@@ -18,4 +18,5 @@ the brief asks for and where the supporting numbers and figures are generated.
 | 11 | How much the test set can resolve | `artifacts/analysis/uncertainty.md` |
 | 12 | Failure analysis of the confusion matrix | `confusion_*.png`, `error_analysis.csv` (`pred_in_multi_subtypes`), per-class AUROC |
 | 13 | What you would do with 10x compute | (author) |
-| A | Pilot on ungated encoders (optional appendix) | `artifacts/pilot/` |
+| A | Pilot on ungated encoders (optional appendix) | `artifacts/pilot/PILOT_RESULTS.md` |
+| B | Shortcut risk: slide-ID order → label; within-block evaluation | `artifacts/pilot/batch_probe/`, `artifacts/pilot/within_batch/`, `scripts/08_within_batch_eval.py` |

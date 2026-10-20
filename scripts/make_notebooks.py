@@ -147,6 +147,8 @@ print(len(glob.glob(f"{EMB}/*.h5")), "feature files")
         code('''
 !python scripts/02_run_agent.py --embeddings-dir {EMB}
 !cat artifacts/agent/$(cat artifacts/agent/LATEST)/decisions.md
+# shortcut check (dev OOF only): does performance survive within slide-ID acquisition blocks?
+!python scripts/08_within_batch_eval.py --run $(cat artifacts/agent/LATEST)
 '''),
         md("## Stage 3 - final evaluation (runs once)"),
         code('''
@@ -154,7 +156,7 @@ print(len(glob.glob(f"{EMB}/*.h5")), "feature files")
 '''),
         code('''
 # Bundle the small, committable artifacts (no features) for download -> add to the repo.
-!tar czf /kaggle/working/results_bundle.tgz artifacts/agent artifacts/results
+!tar czf /kaggle/working/results_bundle.tgz artifacts/agent artifacts/results artifacts/within_batch
 print("Download /kaggle/working/results_bundle.tgz from the Output tab")
 '''),
     ])

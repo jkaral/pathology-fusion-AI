@@ -20,7 +20,7 @@ done or in progress autonomously (see `docs/WORKLOG.md`).
 |---|---|---|---|
 | ID 8377886 (ages 68/69) | one patient | leakage-safe | `data.duplicate_id_policy` |
 | 5 patients with conflicting slide labels | label of the imaged slide | image and label always agree; 3 of 5 become Lepidic | `data.conflict_policy` |
-| Stain normalisation for the headline run | off | the probe found no batch signal in colour or features so far; final probe pending | `tiling.stain_normalization` |
+| Stain normalisation for the headline run | off | features do encode acquisition order, but within-block evaluation shows it does not drive classification; the signature looks like encoding settings more than colour (`artifacts/pilot/PILOT_RESULTS.md` §3) | `tiling.stain_normalization` |
 | LLM search policy on Kaggle | Qwen2.5-7B (free, local) | quality vs. GPU memory | `agent.llm.local_model` |
 
 ## Nice to have

@@ -1,0 +1,51 @@
+{
+  "selected": {
+    "family": "single",
+    "models": [
+      "phikon"
+    ],
+    "use_meta": true,
+    "norm": "none",
+    "pca_dim": null,
+    "late_rule": "prob_mean",
+    "stack_c": 1.0,
+    "stream_fusion": "gated",
+    "modality_dropout": 0.0
+  },
+  "selected_short": "single phikon +meta",
+  "selected_index": 1,
+  "selected_cv_mean": 0.8480716588255653,
+  "selected_cv_se": 0.02611961099256835,
+  "best_reference": {
+    "family": "single",
+    "models": [
+      "phikon"
+    ],
+    "use_meta": true,
+    "norm": "none",
+    "pca_dim": null,
+    "late_rule": "prob_mean",
+    "stack_c": 1.0,
+    "stream_fusion": "gated",
+    "modality_dropout": 0.0
+  },
+  "best_reference_short": "single phikon +meta",
+  "best_reference_cv_mean": 0.8480716588255653,
+  "cv_gain_vs_best_single": 0.0,
+  "cv_gain_se": 0.0,
+  "cv_gain_significant": false,
+  "metric": "macro_auroc",
+  "n_dev": 162,
+  "n_folds": 5,
+  "fusion_trials": 14,
+  "budget": 16,
+  "stop_reason": "patience: 8 trials without an accepted improvement",
+  "selection_optimism": {
+    "optimism": 0.010999690043454398,
+    "best_pooled": 0.8454178933455554,
+    "corrected": 0.834418203302101,
+    "n_boot_used": 200,
+    "top_pick_frequency": 0.47
+  },
+  "proposer": "llm:local:Qwen/Qwen2.5-3B-Instruct"
+}

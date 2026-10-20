@@ -20,10 +20,12 @@ Dataset: [`kmmuleelab/Lung_Pathology_Image_JPG`](https://huggingface.co/datasets
 | 5. Metadata signal + test-set resolving power | `scripts/05_metadata_and_uncertainty.py` | CPU, seconds | `artifacts/analysis/` |
 | 6. Tiling statistics + QC contact sheets | `scripts/06_tiling_qc_report.py` | CPU | `<run>/tiling/` |
 | 7. Batch / shortcut probe | `scripts/07_batch_probe.py` | CPU | `<run>/batch_probe/` |
+| 8. Within-acquisition-block evaluation | `scripts/08_within_batch_eval.py --run <id>` | CPU, seconds | `<run>/within_batch/` |
 
 **Pilot on real data (no credentials, no GPU):** `conf/pilot.yaml` runs stages 1-2 and the probes
 on all 203 real slides with three *ungated* encoders (Phikon-v2, Phikon, Lunit-DINO) at 256
-tiles/slide on CPU (bf16), scored by development CV only. Stage 3 is never run on the pilot, so
+tiles/slide on CPU (bf16), scored by development CV only. Outcome (`artifacts/pilot/PILOT_RESULTS.md`):
+fused 0.869 vs equal-budget tuned single 0.848, paired gain +0.021 ± 0.008. Stage 3 is never run on the pilot, so
 the test split stays reserved for the headline run. Results: `artifacts/pilot/`.
 Usage: `PATHFUSION_CONFIG=conf/pilot.yaml python scripts/01_extract_embeddings.py`.
 
