@@ -25,3 +25,4 @@ wandb/
 artifacts/qc/*.jpg
 artifacts/qc/thumbs/
 artifacts/qc/thumbs_macenko/
+artifacts/**/agent/*/cache/
