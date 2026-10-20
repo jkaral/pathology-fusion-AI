@@ -10,11 +10,13 @@ deterministic proposer when neither is usable.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import time
 import urllib.request
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any
 
 from pathfusion.config import LLMCfg
@@ -29,6 +31,28 @@ class ChatLLM(ABC):
 
     @abstractmethod
     def chat(self, system: str, user: str) -> str: ...
+
+
+class CachedChat(ChatLLM):
+    """Replays identical (system, user) prompts from disk, so a resumed search re-issues no
+    LLM calls for steps it already took (greedy decoding makes replies reproducible anyway)."""
+
+    def __init__(self, inner: ChatLLM, cache_dir: Path):
+        self.inner = inner
+        self.name = inner.name
+        self.cache_dir = cache_dir
+        self.calls = 0
+
+    def chat(self, system: str, user: str) -> str:
+        key = hashlib.sha256((self.inner.name + "\0" + system + "\0" + user).encode()).hexdigest()[:20]
+        path = self.cache_dir / f"llm_{key}.json"
+        if path.exists():
+            return json.loads(path.read_text())["reply"]
+        reply = self.inner.chat(system, user)
+        self.calls += 1
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"reply": reply}))
+        return reply
 
 
 class LocalHFChat(ChatLLM):

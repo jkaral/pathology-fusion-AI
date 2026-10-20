@@ -13,8 +13,10 @@ overlap between CV training sets (plain fold SD understates uncertainty):
 
 from __future__ import annotations
 
+import json
 import time
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -23,6 +25,7 @@ from pathfusion.eval.metrics import compute_metrics, metric_fn
 from pathfusion.fusion.pipelines import build_pipeline, fit_cached
 from pathfusion.fusion.spec import FusionSpec
 from pathfusion.training.context import DataContext
+from pathfusion.utils.io import stable_hash
 
 
 @dataclass
@@ -51,7 +54,11 @@ class PairedDiff:
 
 
 class CVEvaluator:
-    def __init__(self, ctx: DataContext, folds: pd.DataFrame, metric: str, seed: int):
+    def __init__(self, ctx: DataContext, folds: pd.DataFrame, metric: str, seed: int,
+                 cache_dir: Path | None = None):
+        """``cache_dir``: persist each finished trial so an interrupted search resumes for free."""
+        self.cache_dir = cache_dir
+        self._folds_key = stable_hash(folds.sort_values(["repeat", "fold", "patient_id"]).to_dict("list"))
         self.ctx = ctx
         self.metric_name = metric
         self.metric = metric_fn(metric, ctx.n_classes)
@@ -69,7 +76,30 @@ class CVEvaluator:
         n_te = np.mean([len(h) for _, _, h in self.splits])
         self.nb_ratio = float(n_te / (len(self.dev_ids) - n_te))
 
+    def _cache_path(self, spec: FusionSpec) -> Path | None:
+        if self.cache_dir is None:
+            return None
+        key = stable_hash({"spec": spec.key, "folds": self._folds_key, "seed": self.seed,
+                           "metric": self.metric_name, "train": asdict(self.ctx.train_cfg),
+                           "dims": self.ctx.store.dims if self.ctx.store is not None else None})
+        return self.cache_dir / f"trial_{key}.npz"
+
     def evaluate(self, spec: FusionSpec) -> TrialResult:
+        path = self._cache_path(spec)
+        if path is not None and path.exists():
+            z = np.load(path, allow_pickle=False)
+            return TrialResult(spec, z["fold_scores"], z["oof_probs"], json.loads(str(z["pooled"])),
+                               float(z["seconds"]), extras={"cached": True})
+        res = self._evaluate(spec)
+        if path is not None:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = path.with_suffix(".tmp.npz")
+            np.savez(tmp, fold_scores=res.fold_scores, oof_probs=res.oof_probs,
+                     pooled=json.dumps(res.pooled), seconds=res.seconds)
+            tmp.replace(path)
+        return res
+
+    def _evaluate(self, spec: FusionSpec) -> TrialResult:
         t0 = time.perf_counter()
         oof = np.zeros((self.n_repeats, len(self.dev_ids), self.ctx.n_classes))
         scores = []

@@ -207,3 +207,24 @@ def test_single_search_can_select_a_reference(cfg, cohort, split, synthetic_dir,
                     select_from_references=True).run()
     assert out.state.trials_used == 2
     assert out.selected.spec.family == "single"
+
+
+def test_evaluator_disk_cache_resumes(ctx, cfg, tmp_path):
+    from pathfusion.agent.llm import CachedChat
+
+    folds = load_cv_folds(cfg)
+    dev = sorted(folds["patient_id"].astype(str).unique())
+    sub = DataContext.build(ctx.cohort[ctx.cohort["patient_id"].isin(dev)].reset_index(drop=True),
+                            ctx.store, ctx.classes, ctx.train_cfg)
+    ev = CVEvaluator(sub, folds, "macro_auroc", seed=0, cache_dir=tmp_path)
+    spec = FusionSpec("meta_only")
+    a = ev.evaluate(spec)
+    b = CVEvaluator(sub, folds, "macro_auroc", seed=0, cache_dir=tmp_path).evaluate(spec)
+    assert b.extras.get("cached") and np.allclose(a.fold_scores, b.fold_scores)
+    assert np.allclose(a.oof_probs, b.oof_probs) and a.pooled == b.pooled
+
+    inner = ScriptedLLM(["reply-1"])
+    llm = CachedChat(inner, tmp_path)
+    user = "Trials ... acceptance_z"
+    assert llm.chat("sys", user) == "reply-1"
+    assert CachedChat(ScriptedLLM([]), tmp_path).chat("sys", user) == "reply-1"  # replayed, no call

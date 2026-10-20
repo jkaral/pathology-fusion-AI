@@ -29,6 +29,7 @@ import pandas as pd  # noqa: E402
 
 from pathfusion.agent.evaluator import CVEvaluator  # noqa: E402
 from pathfusion.agent.factory import make_llm, make_proposer, resolve_backend  # noqa: E402
+from pathfusion.agent.llm import CachedChat  # noqa: E402
 from pathfusion.agent.loop import AgentLoop  # noqa: E402
 from pathfusion.agent.space import SearchSpace  # noqa: E402
 from pathfusion.config import load_config  # noqa: E402
@@ -65,12 +66,17 @@ def main() -> None:
     ctx = DataContext.build(dev_cohort, store, cfg.data.classes, cfg.train)
 
     space = SearchSpace(cfg.extract.models)
-    evaluator = CVEvaluator(ctx, folds, cfg.agent.selection_metric, cfg.seed)
-    llm = make_llm(cfg.agent)  # one (lazily loaded) LLM shared by both searches
-    proposer = make_proposer(cfg.agent, space, n_dev=len(dev_ids), n_folds=len(evaluator.splits), llm=llm)
     run_id = args.run_id or time.strftime("%Y%m%d-%H%M%S") + f"_{resolve_backend(cfg.agent)}"
     out_dir = cfg.paths.resolve("agent_dir") / run_id
     out_dir.mkdir(parents=True, exist_ok=True)
+    # Re-running with the same --run-id resumes: finished trials and LLM replies are replayed
+    # from out_dir/cache and the search continues where it stopped.
+    cache = out_dir / "cache"
+    evaluator = CVEvaluator(ctx, folds, cfg.agent.selection_metric, cfg.seed, cache_dir=cache)
+    llm = make_llm(cfg.agent)  # one (lazily loaded) LLM shared by both searches
+    if llm is not None:
+        llm = CachedChat(llm, cache)
+    proposer = make_proposer(cfg.agent, space, n_dev=len(dev_ids), n_folds=len(evaluator.splits), llm=llm)
     dump_json({"config": cfg.to_dict(), "git_commit": git_commit(), "embeddings_dir": str(emb_dir),
                "device": str(ctx.device)}, out_dir / "config.json")
 
