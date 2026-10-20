@@ -10,12 +10,13 @@ from __future__ import annotations
 import csv
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal, cast
 
 from pathfusion.config import TrackingCfg
 from pathfusion.utils.logging import get_logger
 
 log = get_logger("tracking")
+WandbMode = Literal["online", "offline", "disabled"]
 
 
 class Tracker:
@@ -27,13 +28,16 @@ class Tracker:
         mode = cfg.mode
         if mode == "auto":
             mode = "online" if os.environ.get("WANDB_API_KEY") else "disabled"
+        if mode not in ("online", "offline", "disabled"):
+            raise ValueError(f"tracking.mode must be auto|online|offline|disabled, got {mode!r}")
         if mode != "disabled":
             try:
                 import wandb
 
-                self._run = wandb.init(project=cfg.wandb_project, entity=cfg.wandb_entity, name=name,
-                                       group=group, job_type=job_type, config=config, mode=mode,
-                                       reinit="finish_previous")
+                self._run = wandb.init(
+                    project=cfg.wandb_project, entity=cfg.wandb_entity, name=name, group=group,
+                    job_type=job_type, config=config, mode=cast(WandbMode, mode), reinit="finish_previous",
+                )
             except Exception as exc:  # tracking must never break a run
                 log.warning("wandb disabled (%s)", exc)
                 self._run = None
