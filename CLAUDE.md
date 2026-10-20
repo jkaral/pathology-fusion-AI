@@ -120,6 +120,10 @@ sex**.
 
 ## Conventions for working in this repo
 
+- **Every commit must show as Verified on GitHub.** Commit with the session's default git
+  identity; never override `user.name` / `user.email`, because commits signed with this
+  environment's key verify only under that identity. After each push, check
+  `commit.verification.verified` on `repos/<owner>/<repo>/commits/<sha>`.
 - **Changes go through a pull request into `main`.** Use the existing feature branch; don't
   create extra branches and don't push to `main` directly.
 - **Verify before every push:** `ruff check src scripts tests`, `mypy`, and the relevant
