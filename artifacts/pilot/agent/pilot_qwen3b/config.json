@@ -117,7 +117,7 @@
       "mode": "auto"
     }
   },
-  "git_commit": "75bae106a462bc20e31bd67de5fe2d8ccf509a76-dirty",
+  "git_commit": "07153a0dc9336820284c5f1aea67cd38428ee977",
   "embeddings_dir": "/home/user/pathology-fusion-AI/artifacts/embeddings_pilot",
   "device": "cpu"
 }
