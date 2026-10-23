@@ -162,6 +162,57 @@ print("Download /kaggle/working/results_bundle.tgz from the Output tab")
     ])
 
 
+def extra_slides_notebook() -> dict:
+    return notebook([
+        md("""
+# Post-hoc study - train on every slide of a patient (development CV only)
+
+The headline result is final (test set used once). This notebook embeds the **144 further
+slides of the 162 development patients** (same CLWD release; test patients' slides are never
+downloaded) and asks, on the same 5 development folds, whether training on them helps.
+See `scripts/09_extra_slides_study.py`.
+
+**Settings:** Accelerator **GPU T4 x2**, Internet **On**, Secret `HF_TOKEN`, input dataset
+`clwd-embeddings` (the stage-1 output). Use **Save & Run All (Commit)**: about 3 h to embed
+the slides, then about 1-2 h for the study.
+"""),
+        code(SETUP),
+        code(SECRETS),
+        md("## 1. Embed the extra slides (resumable; skips finished slides)"),
+        code('''
+import shutil
+os.environ["PATHFUSION_JPG_CACHE"] = "/tmp"
+OUT_X = "/kaggle/working/embeddings_extra"
+print("free GB in /tmp:", shutil.disk_usage("/tmp").free / 1e9)
+!python scripts/01_extract_embeddings.py --extra-slides --out-dir {OUT_X} paths.qc_dir=/kaggle/working/qc_extra
+!python scripts/01_extract_embeddings.py --summarize --out-dir {OUT_X}
+'''),
+        md("## 2. One directory with headline + extra features (symlinks)"),
+        code('''
+import glob
+EMB = "/kaggle/working/all_embeddings"
+os.makedirs(EMB, exist_ok=True)
+srcs = sorted({os.path.dirname(p) for p in glob.glob("/kaggle/input/**/WSI-*.h5", recursive=True)}) + [OUT_X]
+for d in srcs:
+    for p in glob.glob(f"{d}/WSI-*.h5"):
+        dst = os.path.join(EMB, os.path.basename(p))
+        if not os.path.exists(dst):
+            os.symlink(p, dst)
+print(len(glob.glob(f"{EMB}/*.h5")), "feature files (expected 203 headline + 144 extra = 347)")
+'''),
+        md("## 3. The study (development CV only; the test set is never loaded)"),
+        code('''
+!python scripts/09_extra_slides_study.py --embeddings-dir {EMB} --seeds 0,1,2
+!cat artifacts/extra_slides_study/results.md
+'''),
+        code('''
+!cp {OUT_X}/extraction_summary.json artifacts/extra_slides_study/extraction_summary_extra.json
+!tar czf /kaggle/working/extra_slides_bundle.tgz artifacts/extra_slides_study
+print("Download /kaggle/working/extra_slides_bundle.tgz from the Output tab")
+'''),
+    ])
+
+
 COLAB_SETUP = f'''
 # Colab: features and results live on Google Drive so they survive the runtime.
 from google.colab import drive, userdata
@@ -231,6 +282,7 @@ def main() -> None:
     out.mkdir(exist_ok=True)
     (out / "kaggle_01_extract_embeddings.ipynb").write_text(json.dumps(extraction_notebook(), indent=1) + "\n")
     (out / "kaggle_02_agent_and_evaluation.ipynb").write_text(json.dumps(agent_eval_notebook(), indent=1) + "\n")
+    (out / "kaggle_03_extra_slides_study.ipynb").write_text(json.dumps(extra_slides_notebook(), indent=1) + "\n")
     (out / "colab_01_extract_embeddings.ipynb").write_text(json.dumps(colab_extraction_notebook(), indent=1) + "\n")
     (out / "colab_02_agent_and_evaluation.ipynb").write_text(
         json.dumps(colab_agent_eval_notebook(), indent=1) + "\n")

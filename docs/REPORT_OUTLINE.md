@@ -20,3 +20,4 @@ the brief asks for and where the supporting numbers and figures are generated.
 | 13 | What you would do with 10x compute | (author) |
 | A | Pilot on ungated encoders (optional appendix) | `artifacts/pilot/PILOT_RESULTS.md` |
 | B | Shortcut risk: slide-ID order → label; within-block evaluation | `artifacts/pilot/batch_probe/`, `artifacts/pilot/within_batch/`, `scripts/08_within_batch_eval.py` |
+| C | Post-hoc: does training on every slide help? (development CV only, after the test was used) | `artifacts/extra_slides_study/results.md`, `scripts/09_extra_slides_study.py`, `src/pathfusion/data/extra_slides.py` |
