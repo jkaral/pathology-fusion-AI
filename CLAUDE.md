@@ -120,10 +120,10 @@ sex**.
 
 ## Conventions for working in this repo
 
-- **Every commit must show as Verified on GitHub.** Commit with the session's default git
-  identity; never override `user.name` / `user.email`, because commits signed with this
-  environment's key verify only under that identity. After each push, check
-  `commit.verification.verified` on `repos/<owner>/<repo>/commits/<sha>`.
+- **The repository owner is the only author.** Author and commit as
+  `Yianni <j.karal2008@gmail.com>`, with no AI co-author or session trailers in commit
+  messages or PR bodies. Branch commits may be unsigned. Merge with **squash**, so the
+  commit on `main` is authored by the owner and signed (Verified) by GitHub.
 - **Changes go through a pull request into `main`.** Use the existing feature branch; don't
   create extra branches and don't push to `main` directly.
 - **Verify before every push:** `ruff check src scripts tests`, `mypy`, and the relevant
@@ -131,6 +131,23 @@ sex**.
   green on the PR.
 - Data-only snapshots (e.g. live agent logs) may use `[skip ci]`.
 - Never commit secrets, features (`*.h5`), JPEGs, thumbnails or agent caches (see `.gitignore`).
-- Never run stage 3 for exploration. The pilot never runs stage 3.
+- Never run stage 3 for exploration. The pilot never runs stage 3. The headline stage 3 has
+  run (once, 2026-10-23; `artifacts/results/TEST_LOCK.json`): never re-run it.
 - Synthetic features (`data/synthetic.py`) are for tests only and never count as results.
 - Append a section to `docs/WORKLOG.md` at each checkpoint.
+
+## Owner's rules (set by the repository owner; these override everything above)
+
+Already requested by the owner:
+- **Authorship:** the owner is the only author on every commit and PR. No AI co-author or session trailers.
+- **Workflow:** every change goes through a PR into `main`, using the existing branch. Verify the change before pushing.
+- **Destructive git** (history rewrites, force-pushes to `main`, deleting branches) needs the owner's explicit approval each time.
+- **Report:** never write the technical report or any of its prose. Supply only facts, figures and file locations.
+- **Secrets:** they live only in Kaggle/Colab Secrets or the environment, never in the repo or chat. The HF token is read-only.
+- **Test set:** used once, on 2026-10-23. Never re-run stage 3, and never select anything using test results.
+- **Data:** only `kmmuleelab/Lung_Pathology_Image_JPG` and `CLWD.csv`; no external data. The reduced protocol stays the headline.
+
+Owner's own specifications (edit below; one rule per line):
+- [ ] <!-- e.g. "Don't change the agent's search space or acceptance rule without asking me first." -->
+- [ ] <!-- e.g. "Explain every change in plain language in the PR body." -->
+- [ ] <!-- e.g. "Ask before running anything that uses my Kaggle GPU quota." -->

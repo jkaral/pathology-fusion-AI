@@ -1,0 +1,51 @@
+{
+  "selected": {
+    "family": "single",
+    "models": [
+      "uni2h"
+    ],
+    "use_meta": true,
+    "norm": "none",
+    "pca_dim": null,
+    "late_rule": "prob_mean",
+    "stack_c": 1.0,
+    "stream_fusion": "gated",
+    "modality_dropout": 0.0
+  },
+  "selected_short": "single uni2h +meta",
+  "selected_index": 1,
+  "selected_cv_mean": 0.8913443469046918,
+  "selected_cv_se": 0.035882023247164586,
+  "best_reference": {
+    "family": "single",
+    "models": [
+      "uni2h"
+    ],
+    "use_meta": true,
+    "norm": "none",
+    "pca_dim": null,
+    "late_rule": "prob_mean",
+    "stack_c": 1.0,
+    "stream_fusion": "gated",
+    "modality_dropout": 0.0
+  },
+  "best_reference_short": "single uni2h +meta",
+  "best_reference_cv_mean": 0.8913443469046918,
+  "cv_gain_vs_best_single": 0.0,
+  "cv_gain_se": 0.0,
+  "cv_gain_significant": false,
+  "metric": "macro_auroc",
+  "n_dev": 162,
+  "n_folds": 5,
+  "fusion_trials": 14,
+  "budget": 16,
+  "stop_reason": "patience: 8 trials without an accepted improvement",
+  "selection_optimism": {
+    "optimism": 0.007344511809823709,
+    "best_pooled": 0.8812923999410655,
+    "corrected": 0.8739478881312417,
+    "n_boot_used": 200,
+    "top_pick_frequency": 0.76
+  },
+  "proposer": "llm:local:Qwen/Qwen2.5-7B-Instruct"
+}

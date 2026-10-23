@@ -212,3 +212,36 @@ while the current one is being encoded.
 
   So the acquisition signature exists but does not drive subtype discrimination.
 - The extraction summary is regenerated with the pilot config (it previously listed only Phikon-v2).
+
+## Checkpoint 8: headline run on Kaggle (2x T4); test set used once
+
+- **Stage 1** (`kaggle_01`, one commit, no shard): 203/203 slides, 368,250 tiles (median 1,870
+  per slide, cap never reached). Download 0.53 h, decode 1.0 h, tiling 0.06 h; GPU time
+  UNI2-h 3.33 h (30.7 tiles/s), Virchow2 2.47 h (41.4), Phikon-v2 1.08 h (95.0); feature
+  cache 3.78 GB. Committed: `artifacts/embeddings/{extraction_summary,encoders}.json`.
+- **Stage 2** (`artifacts/agent/20261023-184822_local_llm`, proposer Qwen2.5-7B on GPU):
+  - Used 16 of 24 trials; stopped on patience 8. Trials by source: 11 fixed, 4 LLM, 4 fallback.
+  - **No fusion trial was accepted.** The best fusion (#5, early concat, z-score, PCA 128) scored
+    0.892 against 0.891 for UNI2-h + meta, a paired gain of +0.000 ± 0.024.
+  - The one-SE rule selected #6, late fusion with a probability mean: CV 0.882, paired gain
+    −0.009 ± 0.006 against the best single model. Optimism was 0.010.
+  - Four of eight LLM proposals were duplicates, and the deterministic fallback replaced them.
+  - The equal-budget single search (14 trials) kept UNI2-h + meta.
+  - Within-block development OOF: UNI2-h 0.904, fused 0.872, ID-only 0.561.
+- **Stage 3** (41 test patients, 5 seeds, `TEST_LOCK.json` first use 2026-10-23 19:42:32):
+  - Macro AUROC: fused 0.874 [0.832, 0.913] against best single + meta 0.871
+    [0.821, 0.916]. The paired Δ is +0.003 [−0.020, +0.027], with P(Δ≤0) = 0.38.
+  - The fused model is ahead of every single-model row on point estimates (ensemble and seed
+    mean), but no paired CI excludes 0.
+  - Balanced accuracy: fused 0.414, below best single + meta (0.474) and below UNI2-h, Phikon-v2
+    and Virchow2 alone.
+  - Fused test errors (21/41): recall is In situ 1.00, Lepidic 0.50, Papillary 0.50,
+    Micropapillary 0.40, Acinar 0.33, Solid 0.17, Cribriform 0.00.
+  - Top confusions: Micropapillary→Papillary (3), Lepidic→In situ, Acinar→Micropapillary,
+    Papillary→Micropapillary and Solid→Cribriform (2 each).
+  - 19 of the 21 errors are invasive adenocarcinoma (IA), and 4 of the 21 predictions are in
+    the pathologist's `Multi_Subtypes`.
+- `TEST_LOCK.json` records git commit `3b3dc4a…-dirty`. The code was identical to `main`;
+  "dirty" only reflects the untracked run outputs, because `git status --porcelain` lists them.
+- `report_facts.md` regenerated. Notebooks now clone `main`. The convention is now
+  owner-only authorship.

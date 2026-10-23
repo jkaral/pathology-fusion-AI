@@ -13,6 +13,8 @@ __pycache__/
 # large / regenerable artifacts (features live on Kaggle/Drive, not in git)
 artifacts/embeddings/*
 !artifacts/embeddings/.gitkeep
+!artifacts/embeddings/extraction_summary.json
+!artifacts/embeddings/encoders.json
 artifacts/agent/*/oof_probs.npz
 artifacts/results/probs.npz
 wandb/

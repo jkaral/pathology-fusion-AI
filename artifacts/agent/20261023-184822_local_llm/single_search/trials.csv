@@ -1,0 +1,18 @@
+index,phase,source,family,config,cv_mean,cv_sd,pooled_macro_auroc,pooled_bacc,accepted
+0,reference,fixed,single,"single phikonv2 +meta",0.8188,0.0474,0.8140,0.4772,False
+1,reference,fixed,single,"single uni2h +meta",0.8913,0.0535,0.8813,0.5764,False
+2,reference,fixed,single,"single virchow2 +meta",0.8712,0.0497,0.8598,0.4872,False
+3,coverage,fixed,single,"single phikonv2 norm=l2 +meta",0.7061,0.0374,0.6972,0.3445,False
+4,coverage,fixed,single,"single phikonv2 norm=zscore pca=128 +meta",0.8034,0.0389,0.7991,0.4411,False
+5,coverage,fixed,single,"single uni2h norm=l2 +meta",0.8441,0.0642,0.8280,0.4459,False
+6,coverage,fixed,single,"single uni2h norm=zscore pca=128 +meta",0.8598,0.0539,0.8543,0.5457,False
+7,coverage,fixed,single,"single virchow2 norm=l2 +meta",0.8320,0.0452,0.8182,0.3898,False
+8,coverage,fixed,single,"single virchow2 norm=zscore pca=128 +meta",0.8632,0.0402,0.8567,0.4869,False
+9,adaptive,llm:local:Qwen/Qwen2.5-7B-Instruct,single,"single uni2h norm=l2 pca=256 +meta",0.6912,0.0685,0.6813,0.2406,False
+10,adaptive,llm:local:Qwen/Qwen2.5-7B-Instruct,single,"single phikonv2 norm=zscore pca=64 +meta",0.7842,0.0464,0.7859,0.3652,False
+11,adaptive,fallback,single,"single virchow2 pca=128 +meta",0.8611,0.0356,0.8521,0.5077,False
+12,adaptive,llm:local:Qwen/Qwen2.5-7B-Instruct,single,"single uni2h norm=zscore pca=64 +meta",0.8369,0.0587,0.8295,0.4923,False
+13,adaptive,fallback,single,"single virchow2 norm=l2 pca=128 +meta",0.6662,0.0861,0.6592,0.2875,False
+14,adaptive,fallback,single,"single virchow2 norm=zscore +meta",0.8754,0.0500,0.8685,0.5474,False
+15,adaptive,fallback,single,"single virchow2 norm=zscore pca=64 +meta",0.8447,0.0501,0.8391,0.4920,False
+16,adaptive,llm:local:Qwen/Qwen2.5-7B-Instruct,single,"single uni2h norm=zscore pca=256 +meta",0.8740,0.0449,0.8693,0.5496,False
