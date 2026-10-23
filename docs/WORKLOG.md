@@ -266,3 +266,8 @@ while the current one is being encoded.
   would split sibling slides across inner folds.
 - `scripts/01_extract_embeddings.py --extra-slides`, `scripts/09_extra_slides_study.py` and
   `notebooks/kaggle_03_extra_slides_study.ipynb`. Dry run on synthetic features: OK.
+- README: "Data, models and licences". Licences were checked on each Hugging Face page on
+  2026-10-23: CLWD CC BY 4.0, UNI2-h and Virchow2 CC BY-NC-ND 4.0, Phikon/Phikon-v2 Owkin
+  non-commercial, Lunit-DINO Lunit non-commercial, Qwen2.5 Apache 2.0.
+- Tag `v1.0.0` marks `main` at `4e40f5b` (headline run). The session cannot push tags, so the
+  owner publishes the release from the GitHub UI.

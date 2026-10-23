@@ -39,7 +39,7 @@ python -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt          # pinned; CPU-capable stages, tests, agent, evaluation
 pip install -r requirements-extract.txt  # + timm/transformers/pyvips for stage 1
 pip install -e .                         # optional; scripts also work without installing
-pytest                                   # 59 tests on synthetic features, a few minutes on CPU
+pytest                                   # 65 tests on synthetic features, ~10 min on CPU
 ```
 
 Secrets are only ever read from the environment: `HF_TOKEN` (gated UNI2-h / Virchow2),
@@ -142,6 +142,27 @@ before encoding) is the built-in mitigation.
 - Reported for each row: macro OvR AUROC (per class too) and balanced accuracy, as mean ± sd across seeds, plus the seed ensemble with a 95% stratified patient-bootstrap CI.
 - Paired bootstrap differences of fused minus each row; confusion matrices; per-patient error analysis against the pathologist's `Multi_Subtypes`.
 - `TEST_LOCK.json` makes test use a one-time, audited event.
+
+## Data, models and licences
+
+Everything below is used for non-commercial academic research. No model weights,
+embeddings or slide images are stored in this repository; weights are downloaded from
+Hugging Face at run time, and the embeddings stay in a private Kaggle dataset.
+
+| Resource | Source | Licence | Obligations |
+|---|---|---|---|
+| CLWD slides and metadata | [`kmmuleelab/Lung_Pathology_Image_JPG`](https://huggingface.co/datasets/kmmuleelab/Lung_Pathology_Image_JPG) | CC BY 4.0 | credit the dataset and paper (below) |
+| CLWD paper | *Scientific Data*, [s41597-026-06906-z](https://www.nature.com/articles/s41597-026-06906-z) | CC BY-NC-ND 4.0 (the article) | cite |
+| UNI2-h | [`MahmoodLab/UNI2-h`](https://huggingface.co/MahmoodLab/UNI2-h) (gated) | CC BY-NC-ND 4.0 | non-commercial only; no redistribution of weights; cite |
+| Virchow2 | [`paige-ai/Virchow2`](https://huggingface.co/paige-ai/Virchow2) (gated) | CC BY-NC-ND 4.0 | non-commercial only; no redistribution of weights; cite |
+| Phikon-v2 | [`owkin/phikon-v2`](https://huggingface.co/owkin/phikon-v2) | [Owkin non-commercial licence](https://huggingface.co/owkin/phikon-v2/blob/main/LICENSE.pdf) | non-commercial only; cite |
+| Qwen2.5-7B-Instruct (agent policy) | [`Qwen/Qwen2.5-7B-Instruct`](https://huggingface.co/Qwen/Qwen2.5-7B-Instruct) | Apache 2.0 | keep the licence notice |
+| Phikon (pilot only) | [`owkin/phikon`](https://huggingface.co/owkin/phikon) | [Owkin non-commercial licence](https://github.com/owkin/HistoSSLscaling/blob/main/LICENSE.txt) | non-commercial only; cite |
+| Lunit-DINO ViT-S/16 (pilot only) | [`1aurent/vit_small_patch16_224.lunit_dino`](https://huggingface.co/1aurent/vit_small_patch16_224.lunit_dino) | [Lunit non-commercial licence](https://github.com/lunit-io/benchmark-ssl-pathology/blob/main/LICENSE) | non-commercial only; cite |
+
+Please cite the CLWD paper and the papers of the three foundation models (UNI, Virchow2,
+Phikon-v2) linked from their model cards. The licences are as published on each Hugging Face
+page on 2026-10-23; check the current terms there before any other use.
 
 ## Running it
 
