@@ -1,0 +1,38 @@
+name: release
+
+# Manual only: Actions -> release -> Run workflow. Publishes a GitHub release (and its tag)
+# at an exact commit, so a version stays downloadable however main changes later.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to create, e.g. v1.0.0"
+        required: true
+      target:
+        description: "Full commit SHA (or branch) the release points at"
+        required: true
+      title:
+        description: "Release title"
+        required: true
+      notes:
+        description: "Release notes"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+          TARGET: ${{ inputs.target }}
+          TITLE: ${{ inputs.title }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$TARGET" \
+            --title "$TITLE" --notes "$NOTES"
