@@ -9,6 +9,11 @@ Paired comparison uses the Nadeau-Bengio corrected variance, which accounts for 
 overlap between CV training sets (plain fold SD understates uncertainty):
 
     var_corr = (1/K + n_test/n_train) * var(d_k),   d_k = score_new,k - score_ref,k
+
+``extra_train`` (post-hoc study only, ``data/extra_slides.py``): further slides of a
+training-fold patient are added as extra training bags; held-out patients are still scored
+on their headline slide. Their extra slides are also averaged in at prediction time and
+reported separately (``extras["fold_scores_all_slides"]``).
 """
 
 from __future__ import annotations
@@ -55,9 +60,13 @@ class PairedDiff:
 
 class CVEvaluator:
     def __init__(self, ctx: DataContext, folds: pd.DataFrame, metric: str, seed: int,
-                 cache_dir: Path | None = None):
-        """``cache_dir``: persist each finished trial so an interrupted search resumes for free."""
+                 cache_dir: Path | None = None, extra_train: dict[str, list[str]] | None = None):
+        """``cache_dir``: persist each finished trial so an interrupted search resumes for free.
+
+        ``extra_train``: development patient id -> ids of its extra slides (pseudo-patients).
+        """
         self.cache_dir = cache_dir
+        self.extra_train = extra_train or {}
         self._folds_key = stable_hash(folds.sort_values(["repeat", "fold", "patient_id"]).to_dict("list"))
         self.ctx = ctx
         self.metric_name = metric
@@ -79,9 +88,12 @@ class CVEvaluator:
     def _cache_path(self, spec: FusionSpec) -> Path | None:
         if self.cache_dir is None:
             return None
-        key = stable_hash({"spec": spec.key, "folds": self._folds_key, "seed": self.seed,
-                           "metric": self.metric_name, "train": asdict(self.ctx.train_cfg),
-                           "dims": self.ctx.store.dims if self.ctx.store is not None else None})
+        parts = {"spec": spec.key, "folds": self._folds_key, "seed": self.seed,
+                 "metric": self.metric_name, "train": asdict(self.ctx.train_cfg),
+                 "dims": self.ctx.store.dims if self.ctx.store is not None else None}
+        if self.extra_train:  # only then, so caches of existing runs keep their keys
+            parts["extra"] = sorted(x for v in self.extra_train.values() for x in v)
+        key = stable_hash(parts)
         return self.cache_dir / f"trial_{key}.npz"
 
     def evaluate(self, spec: FusionSpec) -> TrialResult:
@@ -101,9 +113,14 @@ class CVEvaluator:
 
     def _evaluate(self, spec: FusionSpec) -> TrialResult:
         t0 = time.perf_counter()
+        if self.extra_train and spec.family == "late" and spec.late_rule in ("weighted", "stacking"):
+            # their inner CV splits training ids, which would put sibling slides on both sides
+            raise ValueError("weighted/stacking late fusion is not supported with extra training slides")
         oof = np.zeros((self.n_repeats, len(self.dev_ids), self.ctx.n_classes))
-        scores = []
+        oof_all = np.zeros_like(oof)
+        scores, scores_all = [], []
         for r, train, held in self.splits:
+            train = train + [x for p in train for x in self.extra_train.get(p, [])]
             # single-model fits are cached and re-used as late-fusion members
             if spec.family == "single":
                 pipe = fit_cached(self.ctx, spec, train, self.seed)
@@ -112,10 +129,27 @@ class CVEvaluator:
             p = pipe.predict(self.ctx, held)
             idx = [self._pos[h] for h in held]
             oof[r, idx] = p
-            scores.append(self.metric(self.ctx.labels(held), p))
+            y_held = self.ctx.labels(held)
+            scores.append(self.metric(y_held, p))
+            if self.extra_train:
+                # patient-level prediction: mean over the headline slide and its extra slides
+                p_all = p.copy()
+                extra_ids = [x for h in held for x in self.extra_train.get(h, [])]
+                if extra_ids:
+                    p_extra = dict(zip(extra_ids, pipe.predict(self.ctx, extra_ids)))
+                    for i, h in enumerate(held):
+                        mine = self.extra_train.get(h, [])
+                        if mine:
+                            p_all[i] = np.mean([p[i]] + [p_extra[x] for x in mine], axis=0)
+                oof_all[r, idx] = p_all
+                scores_all.append(self.metric(y_held, p_all))
         oof_mean = oof.mean(0)
         pooled = compute_metrics(self.y_dev, oof_mean, self.ctx.n_classes)
-        return TrialResult(spec, np.array(scores), oof_mean, pooled, time.perf_counter() - t0)
+        extras: dict[str, object] = {}
+        if self.extra_train:
+            extras = {"fold_scores_all_slides": np.array(scores_all), "oof_all_slides": oof_all.mean(0),
+                      "pooled_all_slides": compute_metrics(self.y_dev, oof_all.mean(0), self.ctx.n_classes)}
+        return TrialResult(spec, np.array(scores), oof_mean, pooled, time.perf_counter() - t0, extras)
 
     def paired(self, a: TrialResult, b: TrialResult) -> PairedDiff:
         """Fold-paired difference a - b with corrected standard error."""

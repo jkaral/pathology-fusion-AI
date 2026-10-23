@@ -21,6 +21,7 @@ Dataset: [`kmmuleelab/Lung_Pathology_Image_JPG`](https://huggingface.co/datasets
 | 6. Tiling statistics + QC contact sheets | `scripts/06_tiling_qc_report.py` | CPU | `<run>/tiling/` |
 | 7. Batch / shortcut probe | `scripts/07_batch_probe.py` | CPU | `<run>/batch_probe/` |
 | 8. Within-acquisition-block evaluation | `scripts/08_within_batch_eval.py --run <id>` | CPU, seconds | `<run>/within_batch/` |
+| 9. Post-hoc: train on every slide (dev CV only) | `scripts/09_extra_slides_study.py` / `notebooks/kaggle_03_extra_slides_study.ipynb` | GPU, ~4-5 h incl. embedding | `artifacts/extra_slides_study/` |
 
 **Pilot on real data (no credentials, no GPU):** `conf/pilot.yaml` runs stages 1-2 and the probes
 on all 203 real slides with three *ungated* encoders (Phikon-v2, Phikon, Lunit-DINO) at 256

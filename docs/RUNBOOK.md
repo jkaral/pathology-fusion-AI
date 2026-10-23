@@ -29,6 +29,15 @@ The notebooks `git clone` branch `claude/keen-noether-926o85` from
    (`artifacts/agent/…`, `artifacts/results/…`) and commit. Then run
    `python scripts/04_report_facts.py` locally (CPU) for the fact sheet.
 
+## 2b. Optional post-hoc study: every slide (`notebooks/kaggle_03_extra_slides_study.ipynb`)
+
+1. Import the notebook. Settings: **GPU T4 x2**, Internet **On**, Secret `HF_TOKEN`, input
+   `clwd-embeddings`.
+2. **Save & Run All (Commit)**, about 4-5 h. It embeds the 144 further slides of development
+   patients (never test patients) and runs `scripts/09_extra_slides_study.py`.
+3. Download `extra_slides_bundle.tgz` from the Output tab. It is development CV only and
+   doesn't change the headline table.
+
 ## 3. The report (yours to write)
 
 Material to draw on, all generated:

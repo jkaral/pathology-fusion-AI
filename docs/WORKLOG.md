@@ -245,3 +245,24 @@ while the current one is being encoded.
   "dirty" only reflects the untracked run outputs, because `git status --porcelain` lists them.
 - `report_facts.md` regenerated. Notebooks now clone `main`. The convention is now
   owner-only authorship.
+
+## Checkpoint 9: post-hoc extra-slides study (code; awaiting the Kaggle run)
+
+- Question: does training on every slide of a patient help? The headline protocol uses one
+  slide per patient, and the test set is already used, so this study runs on development CV only.
+- Data: the 144 further slides of the 162 development patients (109 patients have at least
+  one). They come from the same CLWD release, so no external data is used. Test patients'
+  extra slides are never listed or downloaded (`src/pathfusion/data/extra_slides.py`, with tests).
+- Each extra slide becomes an extra training bag of its patient's fold and carries its own
+  label (4 differ from the patient's headline label). Held-out patients are still scored on
+  their headline slide, so both arms see identical folds, patients and slides.
+- Pre-registered configurations: the three single models, the agent's pick (late fusion with
+  a probability mean) and the best fusion trial (early concat, z-score, PCA 128). Seeds 0, 1
+  and 2; fold scores are averaged over seeds and compared fold-paired with the Nadeau–Bengio
+  corrected SE.
+- Secondary (a different protocol): averaging each held-out patient's extra slides at
+  inference.
+- Weighted and stacking late fusion are refused with extra slides, because their inner CV
+  would split sibling slides across inner folds.
+- `scripts/01_extract_embeddings.py --extra-slides`, `scripts/09_extra_slides_study.py` and
+  `notebooks/kaggle_03_extra_slides_study.ipynb`. Dry run on synthetic features: OK.

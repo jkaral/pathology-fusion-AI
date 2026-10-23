@@ -9,6 +9,8 @@ Usage:
     python scripts/01_extract_embeddings.py --limit 2            # smoke test on 2 slides
     python scripts/01_extract_embeddings.py --source local --local-dir /kaggle/input/clwd
     python scripts/01_extract_embeddings.py --summarize          # timing/size summary only
+    python scripts/01_extract_embeddings.py --extra-slides --out-dir DIR
+        # post-hoc study: the further slides of development patients only (never test)
 """
 
 from __future__ import annotations
@@ -66,6 +68,8 @@ def main() -> None:
     ap.add_argument("--out-dir", type=Path, default=None, help="defaults to paths.embeddings_dir")
     ap.add_argument("--no-qc", action="store_true", help="skip QC overlay images")
     ap.add_argument("--summarize", action="store_true")
+    ap.add_argument("--extra-slides", action="store_true",
+                    help="embed the additional slides of development patients (data/extra_slides.py)")
     ap.add_argument("--thumbnails-only", action="store_true",
                     help="only (re)write QC overlays + tissue thumbnails for slides missing them; no encoders")
     ap.add_argument("overrides", nargs="*")
@@ -82,12 +86,23 @@ def main() -> None:
 
     cohort = pd.read_csv(cfg.paths.resolve("cohort_csv"), dtype={"patient_id": str})
     slides = sorted(cohort["WSI_ID"], key=lambda s: int(s.split("-")[1]))
+    sizes = dict(zip(cohort["WSI_ID"], cohort["size_bytes"]))
+    if args.extra_slides:
+        from pathfusion.data.extra_slides import extra_slide_table
+        from pathfusion.data.splits import load_split
+
+        manifest = pd.read_csv(cfg.paths.resolve("hf_manifest_csv"))
+        extra = extra_slide_table(cohort, load_split(cfg), manifest, cfg.data.classes)
+        assert (extra["split"] != "test").all()
+        slides = list(extra["WSI_ID"])
+        sizes = dict(zip(extra["WSI_ID"], extra["size_bytes"]))
+        log.info("extra slides of development patients: %d (%.0f GB)", len(slides),
+                 extra["size_bytes"].sum() / 1e9)
     if args.shard:
         i, n = (int(x) for x in args.shard.split("/"))
         slides = slides[i::n]
     if args.limit:
         slides = slides[: args.limit]
-    sizes = dict(zip(cohort["WSI_ID"], cohort["size_bytes"]))
 
     import os
 
