@@ -1,0 +1,62 @@
+{
+  "first_use": {
+    "time": "2026-10-23 19:42:32",
+    "agent_run": "20261023-184822_local_llm",
+    "fused": {
+      "family": "late",
+      "models": [
+        "phikonv2",
+        "uni2h",
+        "virchow2"
+      ],
+      "use_meta": true,
+      "norm": "none",
+      "pca_dim": null,
+      "late_rule": "prob_mean",
+      "stack_c": 1.0,
+      "stream_fusion": "gated",
+      "modality_dropout": 0.0
+    },
+    "best_single": "uni2h",
+    "split_sha256": "9f726b31d5cff8248c5c4538dece803c49c7ce3c5c0c922d6b4bdbef7f5c98ff",
+    "git_commit": "3b3dc4a849ef08123a93ac1af0832ccfb10f5f96-dirty",
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ]
+  },
+  "history": [
+    {
+      "time": "2026-10-23 19:42:32",
+      "agent_run": "20261023-184822_local_llm",
+      "fused": {
+        "family": "late",
+        "models": [
+          "phikonv2",
+          "uni2h",
+          "virchow2"
+        ],
+        "use_meta": true,
+        "norm": "none",
+        "pca_dim": null,
+        "late_rule": "prob_mean",
+        "stack_c": 1.0,
+        "stream_fusion": "gated",
+        "modality_dropout": 0.0
+      },
+      "best_single": "uni2h",
+      "split_sha256": "9f726b31d5cff8248c5c4538dece803c49c7ce3c5c0c922d6b4bdbef7f5c98ff",
+      "git_commit": "3b3dc4a849ef08123a93ac1af0832ccfb10f5f96-dirty",
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    }
+  ]
+}

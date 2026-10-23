@@ -10,7 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REPO = "https://github.com/jkaral/pathology-fusion-AI.git"
-BRANCH = "claude/keen-noether-926o85"
+BRANCH = "main"
 
 
 def md(text: str) -> dict:

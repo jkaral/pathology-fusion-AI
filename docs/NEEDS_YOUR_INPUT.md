@@ -5,12 +5,9 @@ done or in progress autonomously (see `docs/WORKLOG.md`).
 
 ## Required (only you can do these)
 
-1. **Run the headline GPU pipeline on Kaggle.** UNI2-h and Virchow2 need your HF token, and
-   the free GPU is in your account. Steps: `docs/RUNBOOK.md`. The code is pushed now, so the
-   notebooks can clone it.
-   - `notebooks/kaggle_01_extract_embeddings.ipynb` → save output as dataset `clwd-embeddings`
-   - `notebooks/kaggle_02_agent_and_evaluation.ipynb` → download `results_bundle.tgz`
-   - Or upload the bundle here and I'll commit it and generate the fact sheet.
+1. ~~Run the headline GPU pipeline on Kaggle.~~ Done on 2026-10-23. The results are in
+   `artifacts/results/` and the fact sheet is `artifacts/results/report_facts.md`. Stage 3 has
+   run once; never re-run it.
 2. **Write the technical report** (the brief forbids AI-written prose). The headings mapped
    to the evidence are in `docs/REPORT_OUTLINE.md`.
 

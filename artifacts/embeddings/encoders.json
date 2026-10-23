@@ -1,0 +1,53 @@
+[
+  {
+    "name": "uni2h",
+    "hf_repo": "MahmoodLab/UNI2-h",
+    "embed_dim": 1536,
+    "input_size": 224,
+    "mean": [
+      0.485,
+      0.456,
+      0.406
+    ],
+    "std": [
+      0.229,
+      0.224,
+      0.225
+    ],
+    "interpolation": "bilinear"
+  },
+  {
+    "name": "virchow2",
+    "hf_repo": "paige-ai/Virchow2",
+    "embed_dim": 2560,
+    "input_size": 224,
+    "mean": [
+      0.485,
+      0.456,
+      0.406
+    ],
+    "std": [
+      0.229,
+      0.224,
+      0.225
+    ],
+    "interpolation": "bicubic"
+  },
+  {
+    "name": "phikonv2",
+    "hf_repo": "owkin/phikon-v2",
+    "embed_dim": 1024,
+    "input_size": 224,
+    "mean": [
+      0.485,
+      0.456,
+      0.406
+    ],
+    "std": [
+      0.229,
+      0.224,
+      0.225
+    ],
+    "interpolation": "bicubic"
+  }
+]
