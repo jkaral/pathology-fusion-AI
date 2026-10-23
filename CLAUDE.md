@@ -135,3 +135,19 @@ sex**.
   run (once, 2026-10-23; `artifacts/results/TEST_LOCK.json`): never re-run it.
 - Synthetic features (`data/synthetic.py`) are for tests only and never count as results.
 - Append a section to `docs/WORKLOG.md` at each checkpoint.
+
+## Owner's rules (set by the repository owner; these override everything above)
+
+Already requested by the owner:
+- **Authorship:** the owner is the only author on every commit and PR. No AI co-author or session trailers.
+- **Workflow:** every change goes through a PR into `main`, using the existing branch. Verify the change before pushing.
+- **Destructive git** (history rewrites, force-pushes to `main`, deleting branches) needs the owner's explicit approval each time.
+- **Report:** never write the technical report or any of its prose. Supply only facts, figures and file locations.
+- **Secrets:** they live only in Kaggle/Colab Secrets or the environment, never in the repo or chat. The HF token is read-only.
+- **Test set:** used once, on 2026-10-23. Never re-run stage 3, and never select anything using test results.
+- **Data:** only `kmmuleelab/Lung_Pathology_Image_JPG` and `CLWD.csv`; no external data. The reduced protocol stays the headline.
+
+Owner's own specifications (edit below; one rule per line):
+- [ ] <!-- e.g. "Don't change the agent's search space or acceptance rule without asking me first." -->
+- [ ] <!-- e.g. "Explain every change in plain language in the PR body." -->
+- [ ] <!-- e.g. "Ask before running anything that uses my Kaggle GPU quota." -->
