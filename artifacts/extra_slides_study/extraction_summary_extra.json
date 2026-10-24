@@ -1,0 +1,16 @@
+{
+  "slides": 144,
+  "tiles_total": 262581,
+  "tiles_per_slide_median": 1881.0,
+  "slides_capped": 0,
+  "download_hours": 0.41,
+  "decode_hours": 0.71,
+  "tiling_hours": 0.04,
+  "uni2h_gpu_hours": 2.01,
+  "uni2h_tiles_per_s": 36.3,
+  "virchow2_gpu_hours": 1.91,
+  "virchow2_tiles_per_s": 38.2,
+  "phikonv2_gpu_hours": 0.66,
+  "phikonv2_tiles_per_s": 111.3,
+  "feature_cache_gb": 2.69
+}

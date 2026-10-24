@@ -271,3 +271,28 @@ while the current one is being encoded.
   non-commercial, Lunit-DINO Lunit non-commercial, Qwen2.5 Apache 2.0.
 - Tag `v1.0.0` marks `main` at `4e40f5b` (headline run). The session cannot push tags, so the
   owner publishes the release from the GitHub UI.
+
+## Checkpoint 10: extra-slides study results (Kaggle 2x T4; development CV only)
+
+- **Embedding:** 144 slides, 262,581 tiles (median 1,881). GPU time: UNI2-h 2.01 h, Virchow2 1.91 h,
+  Phikon-v2 0.66 h; 2.69 GB of features. The study itself took 54.6 min, and `test_set_used` is false.
+- **Training on extra slides, macro AUROC, paired gain ± corrected SE:**
+
+  | Configuration | Gain |
+  |---|---|
+  | UNI2-h | −0.003 ± 0.011 |
+  | Virchow2 | −0.000 ± 0.015 |
+  | Phikon-v2 | +0.030 ± 0.013 |
+  | late fusion (probability mean) | +0.000 ± 0.013 |
+  | early concat (z-score, PCA 128) | −0.010 ± 0.006 |
+
+  Only Phikon-v2 gains by more than 2 SE, and it is the weakest encoder (0.825 → 0.855).
+- **Per fold:** fold 4 drops for every configuration except Phikon-v2 (about −0.03), while folds
+  0–3 are flat or slightly positive.
+- **All slides at inference:** a different protocol, so it isn't comparable with the headline test.
+  - UNI2-h: 0.899 (+0.005 ± 0.019)
+  - Late fusion: 0.899 (+0.017 ± 0.021)
+  - Phikon-v2: 0.872 (+0.047 ± 0.018)
+- **Pooled balanced accuracy** (no SE) rises for most configurations, e.g. late fusion
+  0.547 → 0.575 → 0.599, but falls for early concat (0.608 → 0.582 → 0.577).
+- `04_report_facts.py` now appends the study to `report_facts.md` when it exists.

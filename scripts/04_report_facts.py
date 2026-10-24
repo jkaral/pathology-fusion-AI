@@ -92,6 +92,9 @@ def main() -> None:
   (test patients: {errs.groupby('diagnosis').size().to_dict()}).
 - Figures: artifacts/results/figures/ (confusion, forest plots, per-class AUROC, curves, agent trajectory).
 """))
+    study = cfg.paths.resolve("artifacts") / "extra_slides_study" / "results.md"
+    if study.exists():  # post-hoc, development CV only (scripts/09_extra_slides_study.py)
+        out.append(study.read_text().replace("# Extra-slides study", "## Post-hoc extra-slides study"))
     (res_dir / "report_facts.md").write_text("\n".join(out))
     print(res_dir / "report_facts.md")
 
